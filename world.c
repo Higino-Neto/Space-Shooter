@@ -215,6 +215,39 @@ bool WorldAddProjectile(World *world, Projectile projectile) {
     return true;
 }
 
+static void UpdateWorldWave(
+    World *world,
+    float deltaTime
+) {
+
+    if (world->currentWave == 0 && world->enemyCount == 0) {
+        EnemyWave enemyWave = CreateWave(world->planets[0]);
+        WorldAddWave(world, enemyWave);
+        world->currentWave++;
+        return;
+
+    } else if (world->enemyCount > 0) {
+        return;
+        
+        
+    } else if (world->waveCooldown <= 0.0f && world->waitingForNextWave == false) {
+        world->waveCooldown = 5.0f;
+        world->waitingForNextWave = true;
+
+    
+    } else if (world->waveCooldown > 0.0f) {
+        world->waveCooldown -= deltaTime;
+
+        if (world->waveCooldown <= 0.0f) {
+            EnemyWave enemyWave = CreateWave(world->planets[0]);
+            world->currentWave++;
+            world->waitingForNextWave = false;
+            
+            WorldAddWave(world, enemyWave);
+        }
+    }   
+}
+
 static void UpdateWorldPlayer(
     World *world,
     CameraController *controller,
@@ -567,6 +600,11 @@ void UpdateWorld(
         deltaTime
     );
 
+    UpdateWorldWave(
+        world,
+        deltaTime
+    );
+
     HandleEnemyShooting(
         world
     );
@@ -585,6 +623,8 @@ void UpdateWorld(
         world,
         deltaTime
     );
+
+
 
     CleanupWorld(
         world

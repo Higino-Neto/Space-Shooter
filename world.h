@@ -27,6 +27,10 @@ typedef struct {
     Projectile projectiles[MAX_PROJECTILES];
     int projectileCount;
 
+    int currentWave;
+    float waveCooldown;
+    bool waitingForNextWave;
+
     GameCamera gameCamera;
 } World;
 
