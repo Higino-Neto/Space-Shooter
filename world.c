@@ -220,33 +220,35 @@ static void UpdateWorldWave(
     float deltaTime
 ) {
 
-    if (world->currentWave == 0 && world->enemyCount == 0) {
+    if (world->currentWave == 0) {
+        EnemyWave enemyWave = CreateWave(world->planets[0]);
+        WorldAddWave(world, enemyWave);
+        world->currentWave = 1;
+        return;
+
+    } 
+    
+    if (world->enemyCount > 0) {
+        return;
+    }
+    
+    if (!world->waitingForNextWave) {
+        world->waveCooldown = 5.0;
+        world->waitingForNextWave = true;
+        return;
+    }
+
+    world->waveCooldown -= deltaTime;
+         
+    
+    if (world->waveCooldown <= 0.0f) {
         EnemyWave enemyWave = CreateWave(world->planets[0]);
         WorldAddWave(world, enemyWave);
         world->currentWave++;
-        return;
+        world->waitingForNextWave = false;
+    }
+}   
 
-    } else if (world->enemyCount > 0) {
-        return;
-        
-        
-    } else if (world->waveCooldown <= 0.0f && world->waitingForNextWave == false) {
-        world->waveCooldown = 5.0f;
-        world->waitingForNextWave = true;
-
-    
-    } else if (world->waveCooldown > 0.0f) {
-        world->waveCooldown -= deltaTime;
-
-        if (world->waveCooldown <= 0.0f) {
-            EnemyWave enemyWave = CreateWave(world->planets[0]);
-            world->currentWave++;
-            world->waitingForNextWave = false;
-            
-            WorldAddWave(world, enemyWave);
-        }
-    }   
-}
 
 static void UpdateWorldPlayer(
     World *world,

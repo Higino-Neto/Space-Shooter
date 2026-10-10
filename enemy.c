@@ -1363,3 +1363,11 @@ void DrawEnemy(
         GREEN
     );
 }
+
+EnemyAssets LoadEnemyAssets(void) {
+    EnemyAssets assets = {
+        .BigShip = LoadModel("assets/enemy/BigShip/spaceCraft3.obj"),
+        .mediumShip = LoadModel("assets/enemy/mediumShip/spaceCraft2.obj"),
+        .smallShip = LoadModel("assets/enemy/smallShip/spaceCraft1.obj")
+    };
+}

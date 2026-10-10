@@ -5,6 +5,15 @@
 #include "player.h"
 #include "planet.h"
 
+typedef struct EnemyAssets {
+    Model smallShip;
+    Model mediumShip;
+    Model BigShip;
+} EnemyAssets;
+
+EnemyAssets LoadEnemyAssets(void);
+void UnloadEnemyAssets(EnemyAssets *assets);
+
 typedef enum {
     ENEMY_PATROL,
     ENEMY_ATTACK_PLANET,
@@ -14,7 +23,8 @@ typedef enum {
 
 typedef struct Enemy {
 
-    Model model;
+    const Model *visualModel;
+    float modelScale;
 
     Vector3 position;
     Vector3 forward;
@@ -48,6 +58,7 @@ typedef struct Enemy {
     bool alive;
 
 } Enemy;
+
 
 static void UpdateOrientation(
     Enemy *enemy,

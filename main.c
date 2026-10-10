@@ -81,14 +81,14 @@ int main(void) {
         material
     );
 
-    Portal portal = CreatePortal();
+    // Portal portal = CreatePortal();
 
-    EnemyWave wave = CreateWave(world.planets[0]);
+    // EnemyWave wave = CreateWave(world.planets[0]);
 
 
     WorldAddPlayer(&world, player);
     WorldAddPlanet(&world, planet);
-    WorldAddWave(&world, wave);
+    // WorldAddWave(&world, wave);
 
 
     while(!WindowShouldClose()) {

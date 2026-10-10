@@ -6,37 +6,37 @@
 #define MAX_ENEMY_QUANTITY 20
 #define MAX_ENEMY_GROUP_QUANTITY 5
 
-typedef struct Portal {
-    Model model;
-    Color color;
-    float radius;
-    Vector3 position;
-    Vector3 forward;
-} Portal;
-
+// typedef struct Portal {
+//     Model model;
+//     Color color;
+//     float radius;
+//     Vector3 position;
+//     Vector3 forward;
+// } Portal;
 
 typedef struct EnemyGroup {
     Enemy model;
     int enemyCount;    
 } EnemyGroup;
 
+
 typedef struct EnemyWave {
     EnemyGroup enemyGroup[MAX_ENEMY_GROUP_QUANTITY]; 
     
     int enemyGroupCount;
     
-    Portal portal;
+    // Portal portal;
     
     bool active;
 } EnemyWave;
 
-void DrawPortal(Portal portal);
+// void DrawPortal(Portal portal);
 
 Vector3 GetRandomSpawnPosition(float distanceFromPlanet);
 
 EnemyWave CreateWave(Planet planet);
 
-Portal CreatePortal();
+// Portal CreatePortal();
 
 void UpdateWave(EnemyWave *enemyWave);
 

@@ -14,17 +14,17 @@ EnemyWave CreateWave(Planet planet) {
 
    wave.enemyGroup[0] = (EnemyGroup) {
       .model = smallShip,
-      .enemyCount = 5
+      .enemyCount = 1
    };
 
    wave.enemyGroup[1] = (EnemyGroup) {
       .model = bigShip,
-      .enemyCount = 5
+      .enemyCount = 1
    };
 
    wave.enemyGroupCount = 2;
    
-   wave.portal = CreatePortal();
+   // wave.portal = CreatePortal();
    wave.active = true;
 
    printf("Enemy groups: %d\n", wave.enemyGroupCount);
@@ -62,7 +62,7 @@ void DrawWave(EnemyWave *enemyWave) {
    for(int groupIndex = 0; groupIndex < enemyWave->enemyGroupCount; groupIndex++) {
       EnemyGroup *group = &enemyWave->enemyGroup[groupIndex];
 
-      Portal portal = CreatePortal();
+      // Portal portal = CreatePortal();
 
       // DrawPortal(portal);
 
@@ -73,12 +73,12 @@ void DrawWave(EnemyWave *enemyWave) {
    }
 }
 
-Portal CreatePortal() {
-   Portal portal = { 0 };
-   portal.color = BLUE;
-   portal.position = (Vector3) { 300.0f, 300.0f, 300.f };
-   portal.forward = (Vector3) { 0.0f, 0.0f, 0.0f };
-   portal.radius = 10.0f;
+// Portal CreatePortal() {
+//    Portal portal = { 0 };
+//    portal.color = BLUE;
+//    portal.position = (Vector3) { 300.0f, 300.0f, 300.f };
+//    portal.forward = (Vector3) { 0.0f, 0.0f, 0.0f };
+//    portal.radius = 10.0f;
 
-   return portal;
-}
+//    return portal;
+// }
