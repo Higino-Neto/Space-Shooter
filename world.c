@@ -185,8 +185,11 @@ bool WorldAddWave(World *world, EnemyWave enemyWave) {
     for(int groupIndex = 0; groupIndex < enemyWave.enemyGroupCount; groupIndex++) {
         EnemyGroup *group = &enemyWave.enemyGroup[groupIndex];
 
+        
         Enemy enemy = group->model;
         for(int enemyIndex = 0; enemyIndex < group->enemyCount; enemyIndex++) {
+            enemy.position = GetRandomSpawnPosition(3000.0f);
+
             WorldAddEnemy(world, enemy);
         }
    }

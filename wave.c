@@ -45,9 +45,9 @@ Vector3 GetRandomSpawnPosition(float distanceFromPlanet) {
    };
    
    Vector3 direction = {
-      (float) getRandomValue(-1000, 1000),
-      (float) getRandomValue(-1000, 1000),
-      (float) getRandomValue(-1000, 1000)
+      (float) GetRandomValue(-1000, 1000),
+      (float) GetRandomValue(-1000, 1000),
+      (float) GetRandomValue(-1000, 1000)
    };
 
    direction = Vector3Normalize(direction);

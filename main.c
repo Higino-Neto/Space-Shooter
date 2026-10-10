@@ -157,7 +157,7 @@ int main(void) {
                 DrawSphere(
                     aimPosition,
                     0.8f,
-                    RED
+                    GREEN
                 );
 
                 DrawWorld(&world, camera);

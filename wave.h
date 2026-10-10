@@ -32,6 +32,8 @@ typedef struct EnemyWave {
 
 void DrawPortal(Portal portal);
 
+Vector3 GetRandomSpawnPosition(float distanceFromPlanet);
+
 EnemyWave CreateWave(Planet planet);
 
 Portal CreatePortal();

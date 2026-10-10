@@ -14,6 +14,8 @@ typedef enum {
 
 typedef struct Enemy {
 
+    Model model;
+
     Vector3 position;
     Vector3 forward;
 
