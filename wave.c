@@ -1,58 +1,28 @@
 #include "wave.h"
 #include "enemy.h"
+#include "raymath.h"
 #include <stdio.h>
+
 
 EnemyWave CreateWave(Planet planet) {
    EnemyWave wave = { 0 };
-
-   wave.enemyGroup[0].enemy[0] = CreateEnemy(
-        (Vector3) {
-            800.0f,
-            800.0f,
-            800.0f
-        },
-        &planet
-    );
    
-   wave.enemyGroup[0].enemy[1] = CreateEnemy(
-      (Vector3) {
-         500.0f,
-         250.0f,
-         500.0f
-      },
-      &planet
-   );
+   Enemy smallShip = CreateEnemy((Vector3) { 500.0f, 500.0f, 500.0f }, &planet);
+   smallShip.collisionRadius = 20.0f;
+   Enemy bigShip = CreateEnemy((Vector3) { -500.0f, -500.0f, -500.0f }, &planet);
+   bigShip.collisionRadius = 50.0f;
 
-   wave.enemyGroup[0].enemy[2] = CreateEnemy(
-      (Vector3) {
-         500.0f,
-         250.0f,
-         500.0f
-      },
-      &planet
-   );
+   wave.enemyGroup[0] = (EnemyGroup) {
+      .model = smallShip,
+      .enemyCount = 5
+   };
 
-   wave.enemyGroup[0].enemy[3] = CreateEnemy(
-      (Vector3) {
-         500.0f,
-         250.0f,
-         500.0f
-      },
-      &planet
-   );
+   wave.enemyGroup[1] = (EnemyGroup) {
+      .model = bigShip,
+      .enemyCount = 5
+   };
 
-   wave.enemyGroup[0].enemy[4] = CreateEnemy(
-      (Vector3) {
-         500.0f,
-         250.0f,
-         500.0f
-      },
-      &planet
-   );
-
-   wave.enemyGroup[0].enemyCount = 5;
-   wave.enemyGroupCount = 1;
-
+   wave.enemyGroupCount = 2;
    
    wave.portal = CreatePortal();
    wave.active = true;
@@ -64,7 +34,28 @@ EnemyWave CreateWave(Planet planet) {
 }
 
 void UpdateWave(EnemyWave *enemyWave) {
+
+}
+
+Vector3 GetRandomSpawnPosition(float distanceFromPlanet) {
+   Vector3 planetCenter = {
+      0.0f,
+      0.0f,
+      0.0f
+   };
    
+   Vector3 direction = {
+      (float) getRandomValue(-1000, 1000),
+      (float) getRandomValue(-1000, 1000),
+      (float) getRandomValue(-1000, 1000)
+   };
+
+   direction = Vector3Normalize(direction);
+
+   return Vector3Add(
+      planetCenter,
+      Vector3Scale(direction, distanceFromPlanet)
+   );
 }
 
 void DrawWave(EnemyWave *enemyWave) {
@@ -75,8 +66,8 @@ void DrawWave(EnemyWave *enemyWave) {
 
       // DrawPortal(portal);
 
+      Enemy *enemy = &group->model;
       for(int enemyIndex = 0; enemyIndex < group->enemyCount; enemyIndex++) {
-         Enemy *enemy = &group->enemy[enemyIndex];
          DrawEnemy(enemy);
       }
    }

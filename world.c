@@ -183,10 +183,10 @@ bool WorldAddEnemy(World *world, Enemy enemy) {
 
 bool WorldAddWave(World *world, EnemyWave enemyWave) {
     for(int groupIndex = 0; groupIndex < enemyWave.enemyGroupCount; groupIndex++) {
-        EnemyGroup group = enemyWave.enemyGroup[groupIndex];
+        EnemyGroup *group = &enemyWave.enemyGroup[groupIndex];
 
-        for(int enemyIndex = 0; enemyIndex < group.enemyCount; enemyIndex++) {
-            Enemy enemy = group.enemy[enemyIndex];
+        Enemy enemy = group->model;
+        for(int enemyIndex = 0; enemyIndex < group->enemyCount; enemyIndex++) {
             WorldAddEnemy(world, enemy);
         }
    }
