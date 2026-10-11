@@ -29,6 +29,9 @@ Planet CreatePlanet(
 
     planet.resolution = resolution;
 
+    planet.maxHealth = 100;
+    planet.health = planet.maxHealth;
+
     for (int face = 0; face < 6; face++) {
         planet.faces[face] =
             CreatePlanetPatch(
@@ -391,19 +394,55 @@ PlanetPatch CreatePlanetPatch(
     return patch;
 }
 
+// bool PlanetContainsSphere(
+//     const Planet *planet,
+//     Vector3 point,
+//     float objectRadius
+// ) {
+//     Vector3 offset = Vector3Subtract(point, planet->position);
+//     float distance = Vector3Length(offset);
+
+//     if (distance == 0.0f) {
+//         return true;
+//     }
+
+//     Vector3 direction = Vector3Normalize(offset);
+
+//     float height = GetTerrainHeight(
+//         direction,
+//         planet->seed,
+//         planet->heightAmplitude
+//     );
+
+//     float surfaceRadius = planet->radius + height;
+
+//     return distance < surfaceRadius + objectRadius;
+// }
+
+
 bool PlanetContainsSphere(
     const Planet *planet,
     Vector3 point,
     float objectRadius
-) {
-    Vector3 offset = Vector3Subtract(point, planet->position);
+)
+{
+    if (planet == NULL)
+        return false;
+
+    Vector3 offset = Vector3Subtract(
+        point,
+        planet->position
+    );
+
     float distance = Vector3Length(offset);
 
-    if (distance == 0.0f) {
+    if (distance < 0.00001f)
         return true;
-    }
 
-    Vector3 direction = Vector3Normalize(offset);
+    Vector3 direction = Vector3Scale(
+        offset,
+        1.0f / distance
+    );
 
     float height = GetTerrainHeight(
         direction,
@@ -412,6 +451,43 @@ bool PlanetContainsSphere(
     );
 
     float surfaceRadius = planet->radius + height;
+
+    float minRadius =
+        planet->radius * MIN_PLANET_RADIUS_RATIO;
+
+    for (int i = 0; i < planet->deformationCount; i++)
+    {
+        const TerrainDeformation *deformation =
+            &planet->deformations[i];
+
+        if (deformation->radius <= 0.00001f)
+            continue;
+
+        float dot = Vector3DotProduct(
+            direction,
+            deformation->direction
+        );
+
+        float minDot = cosf(deformation->radius);
+
+        if (dot < minDot)
+            continue;
+
+        float angle = acosf(
+            Clamp(dot, -1.0f, 1.0f)
+        );
+
+        float t = angle / deformation->radius;
+
+        float falloff =
+            1.0f - t * t * (3.0f - 2.0f * t);
+
+        surfaceRadius -=
+            deformation->strength * falloff;
+
+        if (surfaceRadius < minRadius)
+            surfaceRadius = minRadius;
+    }
 
     return distance < surfaceRadius + objectRadius;
 }
@@ -529,81 +605,225 @@ void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage) {
 
 }
 
-void UpdatePlanetPatch(Planet *planet) {
+// void UpdatePlanetPatch(Planet *planet) {
 
-    double start;
-    double end;
+//     double start;
+//     double end;
 
-    start = GetTime();
+//     start = GetTime();
 
-    for(int face = 0; face < 6; face++) {
+//     for(int face = 0; face < 6; face++) {
+//         PlanetPatch *patch = &planet->faces[face];
+
+//         int vertexCount = patch->mesh.vertexCount;
+
+//         for(int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+        
+//                 Vector3 originalPosition = {
+//                     patch->originalVertices[vertexIndex * 3 + 0],
+//                     patch->originalVertices[vertexIndex * 3 + 1],
+//                     patch->originalVertices[vertexIndex * 3 + 2] 
+//                 };
+
+//                 Vector3 vertexDirection = Vector3Normalize(originalPosition);
+
+//                 Vector3 currentPosition = originalPosition;
+
+//                 for(int deformationIndex = 0; deformationIndex < planet->deformationCount; deformationIndex++) {
+
+//                     TerrainDeformation deformation = planet->deformations[deformationIndex];
+
+//                     float dot = Vector3DotProduct(deformation.direction, vertexDirection);
+
+//                     float angle = acosf(
+//                         Clamp(dot, -1.0f, 1.0f)
+//                     );
+
+//                     if (angle > deformation.radius) {
+//                         continue;
+//                     }
+
+//                     float t = angle / deformation.radius;
+
+//                     float falloff = 1.0f - t * t * (3.0f - 2.0f * t);
+
+//                     float displacement = deformation.strength * falloff;
+
+//                     float currentRadius = Vector3Length(currentPosition);
+
+//                     float minRadius = planet->radius * MIN_PLANET_RADIUS_RATIO;
+
+//                     float maxDisplacement = 
+//                         currentRadius - minRadius;
+
+//                     if (maxDisplacement <= 0.0f) {
+//                         break;
+//                     }
+
+//                     float actualDisplacement = 
+//                         fminf(
+//                             displacement,
+//                             maxDisplacement
+//                         );
+
+//                     currentPosition = Vector3Subtract(
+//                         currentPosition, 
+//                         Vector3Scale(
+//                             vertexDirection,
+//                             actualDisplacement
+//                         )
+//                     );
+//             }
+
+//             patch->mesh.vertices[vertexIndex * 3 + 0] = currentPosition.x;
+//             patch->mesh.vertices[vertexIndex * 3 + 1] = currentPosition.y;
+//             patch->mesh.vertices[vertexIndex * 3 + 2] = currentPosition.z;
+
+//         }
+
+//         RecalculatePlanetPatchNormals(patch);
+
+//         UpdateMeshBuffer(
+//             patch->mesh,
+//             0,
+//             patch->mesh.vertices,
+//             vertexCount * 3 * sizeof(float),
+//             0
+//         );
+
+
+
+//         UpdateMeshBuffer(
+//             patch->mesh,
+//             2,
+//             patch->mesh.normals,
+//             vertexCount * 3 * sizeof(float),
+//             0
+//         );
+        
+
+//     }
+
+//     end = GetTime();
+
+
+// }
+
+void UpdatePlanetPatch(Planet *planet)
+{
+    if (planet == NULL)
+        return;
+
+    int firstNew =
+        planet->appliedDeformationCount;
+
+    int lastNew =
+        planet->deformationCount;
+
+    if (firstNew < 0)
+        firstNew = 0;
+
+    if (lastNew > MAX_DEFORMATIONS)
+        lastNew = MAX_DEFORMATIONS;
+
+    if (firstNew >= lastNew)
+        return;
+
+    const float minRadius =
+        planet->radius * MIN_PLANET_RADIUS_RATIO;
+
+    for (int face = 0; face < 6; face++)
+    {
         PlanetPatch *patch = &planet->faces[face];
 
         int vertexCount = patch->mesh.vertexCount;
+        bool changed = false;
 
-        for(int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
-        
+        for (int d = firstNew; d < lastNew; d++)
+        {
+            const TerrainDeformation *deformation =
+                &planet->deformations[d];
+
+            float craterRadius = deformation->radius;
+
+            if (craterRadius <= 0.00001f)
+                continue;
+
+            // Teste barato: dispensa acosf para vértices distantes.
+            float minDot = cosf(craterRadius);
+
+            for (int i = 0; i < vertexCount; i++)
+            {
+                int offset = i * 3;
+
                 Vector3 originalPosition = {
-                    patch->originalVertices[vertexIndex * 3 + 0],
-                    patch->originalVertices[vertexIndex * 3 + 1],
-                    patch->originalVertices[vertexIndex * 3 + 2] 
+                    patch->originalVertices[offset],
+                    patch->originalVertices[offset + 1],
+                    patch->originalVertices[offset + 2]
                 };
 
-                Vector3 vertexDirection = Vector3Normalize(originalPosition);
+                Vector3 direction =
+                    Vector3Normalize(originalPosition);
 
-                Vector3 currentPosition = originalPosition;
+                float dot = Vector3DotProduct(
+                    deformation->direction,
+                    direction
+                );
 
-                for(int deformationIndex = 0; deformationIndex < planet->deformationCount; deformationIndex++) {
+                if (dot < minDot)
+                    continue;
 
-                    TerrainDeformation deformation = planet->deformations[deformationIndex];
+                float angle = acosf(
+                    Clamp(dot, -1.0f, 1.0f)
+                );
 
-                    float dot = Vector3DotProduct(deformation.direction, vertexDirection);
+                float t = angle / craterRadius;
 
-                    float angle = acosf(
-                        Clamp(dot, -1.0f, 1.0f)
-                    );
+                float falloff =
+                    1.0f - t * t * (3.0f - 2.0f * t);
 
-                    if (angle > deformation.radius) {
-                        continue;
-                    }
+                float displacement =
+                    deformation->strength * falloff;
 
-                    float t = angle / deformation.radius;
+                Vector3 currentPosition = {
+                    patch->mesh.vertices[offset],
+                    patch->mesh.vertices[offset + 1],
+                    patch->mesh.vertices[offset + 2]
+                };
 
-                    float falloff = 1.0f - t * t * (3.0f - 2.0f * t);
+                float currentRadius =
+                    Vector3Length(currentPosition);
 
-                    float displacement = deformation.strength * falloff;
+                float maxDisplacement =
+                    currentRadius - minRadius;
 
-                    float currentRadius = Vector3Length(currentPosition);
+                if (maxDisplacement <= 0.0f)
+                    continue;
 
-                    float minRadius = planet->radius * MIN_PLANET_RADIUS_RATIO;
+                if (displacement > maxDisplacement)
+                    displacement = maxDisplacement;
 
-                    float maxDisplacement = 
-                        currentRadius - minRadius;
+                currentPosition = Vector3Subtract(
+                    currentPosition,
+                    Vector3Scale(direction, displacement)
+                );
 
-                    if (maxDisplacement <= 0.0f) {
-                        break;
-                    }
+                patch->mesh.vertices[offset] =
+                    currentPosition.x;
 
-                    float actualDisplacement = 
-                        fminf(
-                            displacement,
-                            maxDisplacement
-                        );
+                patch->mesh.vertices[offset + 1] =
+                    currentPosition.y;
 
-                    currentPosition = Vector3Subtract(
-                        currentPosition, 
-                        Vector3Scale(
-                            vertexDirection,
-                            actualDisplacement
-                        )
-                    );
+                patch->mesh.vertices[offset + 2] =
+                    currentPosition.z;
+
+                changed = true;
             }
-
-            patch->mesh.vertices[vertexIndex * 3 + 0] = currentPosition.x;
-            patch->mesh.vertices[vertexIndex * 3 + 1] = currentPosition.y;
-            patch->mesh.vertices[vertexIndex * 3 + 2] = currentPosition.z;
-
         }
+
+        // Não recalcula nem envia faces que não foram alteradas.
+        if (!changed)
+            continue;
 
         RecalculatePlanetPatchNormals(patch);
 
@@ -615,8 +835,6 @@ void UpdatePlanetPatch(Planet *planet) {
             0
         );
 
-
-
         UpdateMeshBuffer(
             patch->mesh,
             2,
@@ -624,14 +842,9 @@ void UpdatePlanetPatch(Planet *planet) {
             vertexCount * 3 * sizeof(float),
             0
         );
-        
-
     }
-
-    end = GetTime();
-
-
 }
+
 
 void RecalculatePlanetPatchNormals(PlanetPatch *patch)
 {

@@ -17,7 +17,8 @@ Player CreatePlayer()
         0.0f
     };
 
-    player.health = 100.0f;
+    player.maxHealth = 100.0f;
+    player.health = player.maxHealth;
     player.speed = 300.0f;
     player.collisionRadius = 40.0f;
 

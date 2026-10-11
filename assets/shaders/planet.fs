@@ -6,17 +6,15 @@ in vec3 fragWorldNormal;
 uniform vec3 planetPosition;
 uniform float planetRadius;
 
-#define MAX_DEFORMATIONS 200
+#define MAX_DEFORMATIONS 1000
 
 uniform int deformationCount;
 uniform vec4 deformationData[MAX_DEFORMATIONS];
 
 out vec4 finalColor;
 
+// Iluminação
 
-// =========================================================
-// ILUMINAÇÃO
-// =========================================================
 
 const vec3 SUN_DIRECTION =
     normalize(vec3(1.0, 1.0, 0.8));
@@ -29,11 +27,6 @@ const vec3 SKY_LIGHT =
 
 const vec3 NIGHT_LIGHT =
     vec3(0.008, 0.015, 0.035);
-
-
-// =========================================================
-// HASH
-// =========================================================
 
 float hash(vec3 p)
 {
@@ -51,11 +44,6 @@ float hash(vec3 p)
         (p.x + p.y + p.z)
     );
 }
-
-
-// =========================================================
-// VALUE NOISE 3D
-// =========================================================
 
 float noise(vec3 p)
 {
@@ -113,11 +101,6 @@ float noise(vec3 p)
     );
 }
 
-
-// =========================================================
-// FRACTAL BROWNIAN MOTION
-// =========================================================
-
 float fbm(vec3 p)
 {
     float value = 0.0;
@@ -149,9 +132,8 @@ float fbm(vec3 p)
 }
 
 
-// =========================================================
-// TERRAIN
-// =========================================================
+
+// Terreno
 
 float terrainNoise(vec3 direction)
 {
@@ -177,9 +159,10 @@ float terrainNoise(vec3 direction)
 }
 
 
-// =========================================================
-// CRATERAS
-// =========================================================
+
+// Cratera
+
+
 
 vec3 ApplyCraterColor(
     vec3 surfaceColor,
@@ -188,234 +171,57 @@ vec3 ApplyCraterColor(
 {
     vec3 result = surfaceColor;
 
-
-    // =====================================================
-    // PROCESSA CADA CRATERA
-    // =====================================================
-
-    for (int i = 0; i < MAX_DEFORMATIONS; i++)
+    for (int i = 0; i < deformationCount; i++)
     {
-        if (i >= deformationCount)
-            break;
+        vec4 data = deformationData[i];
 
-
-        // =================================================
-        // DADOS DA CRATERA
-        // =================================================
-
-        vec3 craterDirection =
-            normalize(
-                deformationData[i].xyz
-            );
-
-        float craterRadius =
-            deformationData[i].w * 0.5;
-
+        // A direção já deve estar normalizada no C.
+        vec3 craterDirection = data.xyz;
+        float craterRadius = data.w * 0.5;
 
         if (craterRadius <= 0.0001)
             continue;
 
+        float d = dot(surfaceDirection, craterDirection);
 
-        // =================================================
-        // DISTÂNCIA ANGULAR
-        // =================================================
-
-        float d =
-            dot(
-                surfaceDirection,
-                craterDirection
-            );
-
-        d =
-            clamp(
-                d,
-                -1.0,
-                1.0
-            );
-
-        float angle =
-            acos(d);
-
-
-        // =================================================
-        // FORA DA CRATERA
-        // =================================================
-
-        if (angle >= craterRadius)
+        if (d < cos(craterRadius))
             continue;
 
-
-        // =================================================
-        // COORDENADA NORMALIZADA
-        // =================================================
-
-        float t =
-            angle /
-            craterRadius;
-
-
-        // =================================================
-        // PERFIL DA CRATERA
-        // =================================================
-        //
-        // 0.00
-        //   │
-        //   │ fundo
-        //   │
-        // 0.45
-        //   │
-        //   │ parede
-        //   │
-        // 0.75
-        //   │
-        //   │ borda
-        //   │
-        // 1.00
-        //
-        // =================================================
-
-
-        // -------------------------------------------------
-        // FUNDO
-        // -------------------------------------------------
+        float angle = acos(clamp(d, -1.0, 1.0));
+        float t = angle / craterRadius;
 
         float floorMask =
-            1.0 -
-            smoothstep(
-                0.00,
-                0.42,
-                t
-            );
-
-
-        // -------------------------------------------------
-        // PAREDE INTERNA
-        // -------------------------------------------------
+            1.0 - smoothstep(0.00, 0.42, t);
 
         float wallMask =
-            smoothstep(
-                0.30,
-                0.55,
-                t
-            ) *
-            (
-                1.0 -
-                smoothstep(
-                    0.55,
-                    0.78,
-                    t
-                )
-            );
-
-
-        // -------------------------------------------------
-        // BORDA
-        // -------------------------------------------------
-        //
-        // Extremamente localizada.
-        //
-        // Não existe alteração depois de ~0.90.
-        //
-        // -------------------------------------------------
+            smoothstep(0.30, 0.55, t) *
+            (1.0 - smoothstep(0.55, 0.78, t));
 
         float rimMask =
-            smoothstep(
-                0.70,
-                0.82,
-                t
-            ) *
-            (
-                1.0 -
-                smoothstep(
-                    0.82,
-                    0.94,
-                    t
-                )
-            );
+            smoothstep(0.70, 0.82, t) *
+            (1.0 - smoothstep(0.82, 0.94, t));
 
+        result = mix(
+            result,
+            vec3(0.055, 0.048, 0.040),
+            floorMask * 0.72
+        );
 
-        // =================================================
-        // CORES
-        // =================================================
+        result = mix(
+            result,
+            vec3(0.115, 0.105, 0.090),
+            wallMask * 0.35
+        );
 
-        vec3 floorColor =
-            vec3(
-                0.055,
-                0.048,
-                0.040
-            );
-
-        vec3 wallColor =
-            vec3(
-                0.115,
-                0.105,
-                0.090
-            );
-
-        vec3 rimColor =
-            vec3(
-                0.145,
-                0.135,
-                0.120
-            );
-
-
-        // =================================================
-        // INTENSIDADE
-        // =================================================
-
-        //
-        // Mantemos cada componente relativamente fraco.
-        //
-        // A iluminação do planeta continua sendo responsável
-        // pela aparência final.
-        //
-
-
-        // -------------------------------------------------
-        // FUNDO
-        // -------------------------------------------------
-
-        result =
-            mix(
-                result,
-                floorColor,
-                floorMask * 0.72
-            );
-
-
-        // -------------------------------------------------
-        // PAREDE
-        // -------------------------------------------------
-
-        result =
-            mix(
-                result,
-                wallColor,
-                wallMask * 0.35
-            );
-
-
-        // -------------------------------------------------
-        // BORDA
-        // -------------------------------------------------
-
-        result =
-            mix(
-                result,
-                rimColor,
-                rimMask * 0.18
-            );
+        result = mix(
+            result,
+            vec3(0.145, 0.135, 0.120),
+            rimMask * 0.18
+        );
     }
-
 
     return result;
 }
-
-
-// =========================================================
-// CLOUD NOISE
-// =========================================================
 
 float cloudNoise(vec3 direction)
 {
@@ -437,15 +243,11 @@ float cloudNoise(vec3 direction)
 }
 
 
-// =========================================================
-// MAIN
-// =========================================================
-
 void main()
 {
-    // =====================================================
-    // DIREÇÃO DA SUPERFÍCIE
-    // =====================================================
+    
+    // Direção da superficie
+    
 
     vec3 direction =
         normalize(
@@ -458,18 +260,8 @@ void main()
             fragWorldNormal
         );
 
-
-    // =====================================================
-    // TERRENO PROCEDURAL
-    // =====================================================
-
     float terrain =
         terrainNoise(direction);
-
-
-    // =====================================================
-    // CONTINENTE
-    // =====================================================
 
     float continent =
         smoothstep(
@@ -478,22 +270,12 @@ void main()
             terrain
         );
 
-
-    // =====================================================
-    // ALTITUDE
-    // =====================================================
-
     float altitude =
         smoothstep(
             0.50,
             0.78,
             terrain
         );
-
-
-    // =====================================================
-    // CORES DO OCEANO
-    // =====================================================
 
     vec3 deepOcean =
         vec3(
@@ -515,11 +297,6 @@ void main()
             0.22,
             0.36
         );
-
-
-    // =====================================================
-    // OCEANO
-    // =====================================================
 
     float oceanDepth =
         smoothstep(
@@ -548,11 +325,6 @@ void main()
             shallowOcean,
             shallowWater
         );
-
-
-    // =====================================================
-    // CORES DA TERRA
-    // =====================================================
 
     vec3 beach =
         vec3(
@@ -588,11 +360,6 @@ void main()
             0.91,
             0.94
         );
-
-
-    // =====================================================
-    // BIOMAS
-    // =====================================================
 
     float lowLand =
         smoothstep(
@@ -651,11 +418,6 @@ void main()
             peak
         );
 
-
-    // =====================================================
-    // VARIAÇÃO DE TERRENO
-    // =====================================================
-
     float variation =
         fbm(
             direction * 25.0 +
@@ -669,11 +431,6 @@ void main()
     landColor +=
         variation;
 
-
-    // =====================================================
-    // COR DA SUPERFÍCIE
-    // =====================================================
-
     vec3 surfaceColor =
         mix(
             oceanColor,
@@ -681,21 +438,11 @@ void main()
             continent
         );
 
-
-    // =====================================================
-    // CRATERAS
-    // =====================================================
-
     surfaceColor =
         ApplyCraterColor(
             surfaceColor,
             direction
         );
-
-
-    // =====================================================
-    // LUZ DO SOL
-    // =====================================================
 
     vec3 lightDirection =
         normalize(
@@ -708,22 +455,12 @@ void main()
             lightDirection
         );
 
-
-    // =====================================================
-    // DIA / NOITE
-    // =====================================================
-
     float day =
         smoothstep(
             -0.20,
             0.35,
             NdotL
         );
-
-
-    // =====================================================
-    // LUZ DIRETA
-    // =====================================================
 
     float directLight =
         max(
@@ -742,11 +479,6 @@ void main()
         SUN_COLOR *
         directLight *
         0.85;
-
-
-    // =====================================================
-    // LUZ AMBIENTE
-    // =====================================================
 
     float skyFactor =
         smoothstep(
@@ -773,11 +505,6 @@ void main()
         ambientColor *
         ambientStrength;
 
-
-    // =====================================================
-    // ILUMINAÇÃO FINAL DA SUPERFÍCIE
-    // =====================================================
-
     vec3 lighting =
         ambientLighting +
         directLighting;
@@ -785,11 +512,6 @@ void main()
     vec3 finalSurface =
         surfaceColor *
         lighting;
-
-
-    // =====================================================
-    // OCEAN SPECULAR
-    // =====================================================
 
     float oceanMask =
         1.0 - continent;
@@ -817,31 +539,31 @@ void main()
         0.35;
 
 
-    // =====================================================
-    // CLOUDS
-    // =====================================================
 
-    float clouds =
-        cloudNoise(direction);
 
-    float cloudMask =
-        smoothstep(
-            0.58,
-            0.73,
-            clouds
-        );
+    float cloudMask = 0.0;
 
-    cloudMask *=
-        continent *
-        day *
-        0.25;
+    if (day > 0.05 && continent > 0.05)
+    {
+        float clouds = cloudNoise(direction);
 
-    vec3 cloudColor =
-        vec3(
-            0.92,
-            0.94,
-            0.96
-        );
+        cloudMask =
+            smoothstep(0.58, 0.73, clouds) *
+            continent *
+            day *
+            0.25;
+    }
+
+    vec3 cloudColor = vec3(0.92, 0.94, 0.96);
+
+    finalSurface = mix(
+        finalSurface,
+        cloudColor * lighting,
+        cloudMask
+    );
+
+
+
 
     finalSurface =
         mix(
@@ -849,11 +571,6 @@ void main()
             cloudColor * lighting,
             cloudMask
         );
-
-
-    // =====================================================
-    // ATMOSFERA / FRESNEL
-    // =====================================================
 
     float rim =
         pow(
@@ -866,11 +583,6 @@ void main()
             ),
             3.0
         );
-
-
-    // =====================================================
-    // ATMOSFERA AZUL
-    // =====================================================
 
     vec3 atmosphereColor =
         vec3(
@@ -890,11 +602,6 @@ void main()
         atmosphereColor *
         atmosphereStrength *
         0.30;
-
-
-    // =====================================================
-    // BRILHO QUENTE NO TERMINADOR
-    // =====================================================
 
     float terminator =
         smoothstep(
@@ -921,32 +628,17 @@ void main()
         rim *
         0.12;
 
-
-    // =====================================================
-    // CONTRASTE FINAL
-    // =====================================================
-
     finalSurface =
         max(
             finalSurface,
             vec3(0.0)
         );
 
-
-    // =====================================================
-    // GAMMA
-    // =====================================================
-
     finalSurface =
         pow(
             finalSurface,
             vec3(1.0 / 2.2)
         );
-
-
-    // =====================================================
-    // RESULTADO
-    // =====================================================
 
     finalColor =
         vec4(

@@ -5,6 +5,8 @@
 #include "world.h"
 #include "skybox.h"
 #include "wave.h"
+#include "ui/ui.h"
+
 #include <stdio.h>
 
 #include "raymath.h"
@@ -15,6 +17,7 @@ static const int screenHeight = 1000;
 
 int main(void) {
     InitWindow(screenWidth, screenHeight, "Space Shooter");
+    UIInit();
     SetTargetFPS(60);
 
     EnemyAssets enemyAssets = LoadEnemyAssets();
@@ -102,6 +105,8 @@ int main(void) {
 
             rlSetClipPlanes(0.05f, 10000.0f);
 
+
+
             BeginMode3D(camera);
                 DrawSkybox(&skybox, camera);
 
@@ -166,20 +171,31 @@ int main(void) {
 
             EndMode3D();
 
-            DrawFPS(10, 10);
-            DrawText(TextFormat("Life: %d", world.player.health), 10, 40, 20, RED);
-            DrawText(TextFormat("X: %.2f", world.player.position.x), 10, 80, 20, RED);
-            DrawText(TextFormat("Y: %.2f", world.player.position.y), 10, 120, 20, RED);
-            DrawText(TextFormat("Z: %.2f", world.player.position.z), 10, 160, 20, RED);
-            DrawText(TextFormat("Planet Damage: %d", world.planets[0].deformationCount), 10, 200, 20, RED);
-            DrawText(TextFormat("Enemies: %d", world.enemyCount), 10, 240, 20, RED);
+            // DrawFPS(10, 10);
+            // DrawText(TextFormat("Life: %d", world.player.health), 10, 40, 20, RED);
+            // DrawText(TextFormat("X: %.2f", world.player.position.x), 10, 80, 20, RED);
+            // DrawText(TextFormat("Y: %.2f", world.player.position.y), 10, 120, 20, RED);
+            // DrawText(TextFormat("Z: %.2f", world.player.position.z), 10, 160, 20, RED);
+            // DrawText(TextFormat("Planet Damage: %d", world.planets[0].deformationCount), 10, 200, 20, RED);
+            // DrawText(TextFormat("Enemies: %d", world.enemyCount), 10, 240, 20, RED);
 
+
+            UIDrawHUD(
+                world.player.health,
+                world.player.maxHealth,
+                world.planets[0].health,
+                world.planets[0].maxHealth,
+                world.player.level,
+                world.player.currentXP,
+                world.player.requiredXP
+            );
         EndDrawing();
     }
 
     
     UnloadSkybox(&skybox);
     UnloadPlayer(&world.player);
+    UIShutdown();
     CloseWindow();
 
     return 0;

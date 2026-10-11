@@ -29,7 +29,12 @@ typedef struct {
     float rollManeuverTarget;
 
     int health;
+    int maxHealth;
     float collisionRadius;
+
+    int level;
+    int currentXP;
+    int requiredXP;
 
     Trail trails[2];
     TrailConfig trailConfig;

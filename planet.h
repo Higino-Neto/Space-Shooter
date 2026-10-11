@@ -3,7 +3,7 @@
 
 #include "raylib.h"
 
-#define MAX_DEFORMATIONS 200
+#define MAX_DEFORMATIONS 1000
 #define MIN_PLANET_RADIUS_RATIO 0.1f
 
 
@@ -38,6 +38,9 @@ typedef struct Planet {
     int appliedDeformationCount;
 
     Vector3 position;
+
+    int health;
+    int maxHealth;
 
     PlanetPatch faces[6];
 
