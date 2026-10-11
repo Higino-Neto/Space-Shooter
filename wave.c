@@ -10,12 +10,12 @@ EnemyWave CreateWave(Planet planet, const EnemyAssets *assets) {
    Enemy smallShip = CreateEnemy((Vector3) { 500.0f, 500.0f, 500.0f }, &planet);
    smallShip.collisionRadius = 20.0f;
    smallShip.visualModel = &assets->smallShip;
-   smallShip.modelScale = 6.0f;
+   smallShip.modelScale = 0.04f;
 
    Enemy bigShip = CreateEnemy((Vector3) { -500.0f, -500.0f, -500.0f }, &planet);
    bigShip.collisionRadius = 50.0f;
    bigShip.visualModel = &assets->bigShip;
-   bigShip.modelScale = 12.0f;
+   bigShip.modelScale = 0.04f;
 
    wave.enemyGroup[0] = (EnemyGroup) {
       .model = smallShip,

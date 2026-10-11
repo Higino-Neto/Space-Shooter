@@ -1373,7 +1373,7 @@ void DrawEnemy(
         forward = (Vector3) { 0.0f, 0.0f, 1.0f };
 
     if (enemy->visualModel != NULL) {
-        Vector3 baseForward = { 0.0f, 0.0f, -1.0f };
+        Vector3 baseForward = { -1.0f, 0.0f, 0.0f };
 
         float dot = Vector3DotProduct(baseForward, forward);
         dot = Clamp(dot, -1.0f, 1.0f);
@@ -1388,12 +1388,30 @@ void DrawEnemy(
             axis = (Vector3) { 0.0f, 1.0f, 0.0f };
         }
 
+        Vector3 localOffset = {
+            0.0f,
+            -1000.0f,
+            0.0f
+        };
+
+        Matrix rotation = MatrixRotate(axis, angle * DEG2RAD);
+
+        Vector3 offset = Vector3Transform(
+            Vector3Scale(localOffset, enemy->modelScale),
+            rotation
+        );
+
+        Vector3 drawPosition = Vector3Add(
+            enemy->position,
+            offset
+        );
+
         DrawModelEx(
             *enemy->visualModel,
-            enemy->position,
+            drawPosition,
             axis,
             angle,
-            (Vector3){
+            (Vector3) {
                 enemy->modelScale,
                 enemy->modelScale,
                 enemy->modelScale
@@ -1402,15 +1420,19 @@ void DrawEnemy(
         );
     }
     else {
-        DrawSphere(enemy->position, enemy->collisionRadius, RED);
+        DrawSphere(
+            enemy->position,
+            enemy->collisionRadius,
+            RED
+        );
     }
 }
 
 EnemyAssets LoadEnemyAssets(void) {
     EnemyAssets assets = {
-        .bigShip = LoadModel("assets/enemy/smallShip/Destroyer_01.fbx"),
-        .mediumShip = LoadModel("assets/enemy/smallShip/Destroyer_01.fbx"),
-        .smallShip = LoadModel("assets/enemy/smallShip/Destroyer_01.fbx")
+        .bigShip = LoadModel("assets/enemy/smallShip/enemyShip1.glb"),
+        .mediumShip = LoadModel("assets/enemy/smallShip/enemyShip1.glb"),
+        .smallShip = LoadModel("assets/enemy/smallShip/enemyShip1.glb")
     };
 
     // TraceLog(
@@ -1447,6 +1469,31 @@ EnemyAssets LoadEnemyAssets(void) {
     //         bigShipTexture
     //     );
     // }
+
+
+    Texture2D texture =
+        LoadTexture("assets/enemy/smallShip/enemyShip1.png");
+
+    for (int i = 0; i < assets.smallShip.materialCount; i++)
+    {
+        assets.smallShip.materials[i]
+            .maps[MATERIAL_MAP_DIFFUSE]
+            .texture = texture;
+    }
+
+    for (int i = 0; i < assets.mediumShip.materialCount; i++)
+    {
+        assets.mediumShip.materials[i]
+            .maps[MATERIAL_MAP_DIFFUSE]
+            .texture = texture;
+    }
+
+    for (int i = 0; i < assets.bigShip.materialCount; i++)
+    {
+        assets.bigShip.materials[i]
+            .maps[MATERIAL_MAP_DIFFUSE]
+            .texture = texture;
+    }
 
     // for (int i = 0; i < assets.mediumShip.materialCount; i++) {
     //     SetMaterialTexture(
