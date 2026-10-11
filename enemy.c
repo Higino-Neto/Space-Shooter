@@ -1431,8 +1431,8 @@ void DrawEnemy(
 EnemyAssets LoadEnemyAssets(void) {
     EnemyAssets assets = {
         .bigShip = LoadModel("assets/enemy/smallShip/enemyShip1.glb"),
-        .mediumShip = LoadModel("assets/enemy/smallShip/enemyShip1.glb"),
-        .smallShip = LoadModel("assets/enemy/smallShip/enemyShip1.glb")
+        .mediumShip = LoadModel("assets/enemy/mediumShip/enemyShip2.glb"),
+        .smallShip = LoadModel("assets/enemy/bigShip/enemyShip3.glb")
     };
 
     // TraceLog(
