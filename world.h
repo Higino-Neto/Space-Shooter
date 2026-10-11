@@ -86,6 +86,12 @@ static void CleanupWorld(
 
 World CreateWorld();
 
+static void UpdateWorldWave(
+    World *world,
+    EnemyAssets *enemyAssets,
+    float deltaTime
+);
+
 bool WorldAddPlayer(World *world, Player player);
 
 bool WorldAddPlanet(World *world, Planet planet);
@@ -99,7 +105,8 @@ bool WorldAddProjectile(World *world, Projectile projectile);
 void UpdateWorld(
     World *world,
     CameraController *controller,
-    Camera *camera
+    Camera *camera,
+    EnemyAssets *enemyAssets
 );
 
 void DrawWorld(World *world, Camera3D camera);

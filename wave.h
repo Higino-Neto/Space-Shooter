@@ -34,7 +34,7 @@ typedef struct EnemyWave {
 
 Vector3 GetRandomSpawnPosition(float distanceFromPlanet);
 
-EnemyWave CreateWave(Planet planet);
+EnemyWave CreateWave(Planet planet, const EnemyAssets *assets);
 
 // Portal CreatePortal();
 

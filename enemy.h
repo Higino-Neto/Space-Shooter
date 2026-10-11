@@ -8,7 +8,7 @@
 typedef struct EnemyAssets {
     Model smallShip;
     Model mediumShip;
-    Model BigShip;
+    Model bigShip;
 } EnemyAssets;
 
 EnemyAssets LoadEnemyAssets(void);

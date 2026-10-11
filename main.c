@@ -17,6 +17,8 @@ int main(void) {
     InitWindow(screenWidth, screenHeight, "Space Shooter");
     SetTargetFPS(60);
 
+    EnemyAssets enemyAssets = LoadEnemyAssets();
+
     World world = CreateWorld();
 
     Skybox skybox = LoadSkybox(
@@ -93,7 +95,7 @@ int main(void) {
 
     while(!WindowShouldClose()) {
 
-        UpdateWorld(&world, &controller, &camera);
+        UpdateWorld(&world, &controller, &camera, &enemyAssets);
 
         BeginDrawing();
             ClearBackground(BLACK);

@@ -217,11 +217,12 @@ bool WorldAddProjectile(World *world, Projectile projectile) {
 
 static void UpdateWorldWave(
     World *world,
+    EnemyAssets *enemyAssets,
     float deltaTime
 ) {
 
     if (world->currentWave == 0) {
-        EnemyWave enemyWave = CreateWave(world->planets[0]);
+        EnemyWave enemyWave = CreateWave(world->planets[0], enemyAssets);
         WorldAddWave(world, enemyWave);
         world->currentWave = 1;
         return;
@@ -242,7 +243,7 @@ static void UpdateWorldWave(
          
     
     if (world->waveCooldown <= 0.0f) {
-        EnemyWave enemyWave = CreateWave(world->planets[0]);
+        EnemyWave enemyWave = CreateWave(world->planets[0], enemyAssets);
         WorldAddWave(world, enemyWave);
         world->currentWave++;
         world->waitingForNextWave = false;
@@ -557,7 +558,8 @@ static void CleanupWorld(
 void UpdateWorld(
     World *world,
     CameraController *controller,
-    Camera *camera
+    Camera *camera,
+    EnemyAssets *enemyAssets
 )
 {
     if (world == NULL ||
@@ -604,6 +606,7 @@ void UpdateWorld(
 
     UpdateWorldWave(
         world,
+        enemyAssets,
         deltaTime
     );
 

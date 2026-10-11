@@ -1293,81 +1293,182 @@ void DrawEnemy(
     const Enemy *enemy
 )
 {
-    if (enemy == NULL)
+    // if (enemy == NULL)
+    //     return;
+
+    // if (!enemy->active)
+    //     return;
+
+
+    // Vector3 forward =
+    //     SafeNormalize(
+    //         enemy->forward
+    //     );
+
+    // if (SafeLength(forward) < 0.001f)
+    // {
+    //     forward =
+    //         (Vector3){
+    //             0.0f,
+    //             0.0f,
+    //             -1.0f
+    //         };
+    // }
+
+    // DrawSphere(
+    //     enemy->position,
+    //     enemy->collisionRadius,
+    //     RED
+    // );
+
+
+    // Vector3 nose =
+    //     Vector3Add(
+    //         enemy->position,
+    //         Vector3Scale(
+    //             forward,
+    //             enemy->collisionRadius * 1.8f
+    //         )
+    //     );
+
+    // DrawSphere(
+    //     nose,
+    //     enemy->collisionRadius * 0.55f,
+    //     MAROON
+    // );
+
+
+    // DrawLine3D(
+    //     enemy->position,
+    //     Vector3Add(
+    //         enemy->position,
+    //         Vector3Scale(
+    //             forward,
+    //             enemy->collisionRadius * 3.0f
+    //         )
+    //     ),
+    //     YELLOW
+    // );
+
+    // DrawSphere(
+    //     Vector3Add(
+    //         enemy->position,
+    //         (Vector3){
+    //             0.0f,
+    //             enemy->collisionRadius * 1.5f,
+    //             0.0f
+    //         }
+    //     ),
+    //     enemy->collisionRadius * 0.15f,
+    //     GREEN
+    // );
+
+
+    if (enemy == NULL || !enemy->active)
         return;
 
-    if (!enemy->active)
-        return;
+    Vector3 forward = Vector3Normalize(enemy->forward);
 
+    if (Vector3Length(forward) < 0.001f)
+        forward = (Vector3) { 0.0f, 0.0f, 1.0f };
 
-    Vector3 forward =
-        SafeNormalize(
-            enemy->forward
-        );
+    if (enemy->visualModel != NULL) {
+        Vector3 baseForward = { 0.0f, 0.0f, -1.0f };
 
-    if (SafeLength(forward) < 0.001f)
-    {
-        forward =
+        float dot = Vector3DotProduct(baseForward, forward);
+        dot = Clamp(dot, -1.0f, 1.0f);
+
+        Vector3 axis = Vector3CrossProduct(baseForward, forward);
+        float axisLength = Vector3Length(axis);
+        float angle = acosf(dot) * RAD2DEG;
+
+        if (axisLength > 0.001f) {
+            axis = Vector3Scale(axis, 1.0f / axisLength);
+        } else {
+            axis = (Vector3) { 0.0f, 1.0f, 0.0f };
+        }
+
+        DrawModelEx(
+            *enemy->visualModel,
+            enemy->position,
+            axis,
+            angle,
             (Vector3){
-                0.0f,
-                0.0f,
-                -1.0f
-            };
+                enemy->modelScale,
+                enemy->modelScale,
+                enemy->modelScale
+            },
+            WHITE
+        );
     }
-
-    DrawSphere(
-        enemy->position,
-        enemy->collisionRadius,
-        RED
-    );
-
-
-    Vector3 nose =
-        Vector3Add(
-            enemy->position,
-            Vector3Scale(
-                forward,
-                enemy->collisionRadius * 1.8f
-            )
-        );
-
-    DrawSphere(
-        nose,
-        enemy->collisionRadius * 0.55f,
-        MAROON
-    );
-
-
-    DrawLine3D(
-        enemy->position,
-        Vector3Add(
-            enemy->position,
-            Vector3Scale(
-                forward,
-                enemy->collisionRadius * 3.0f
-            )
-        ),
-        YELLOW
-    );
-
-    DrawSphere(
-        Vector3Add(
-            enemy->position,
-            (Vector3){
-                0.0f,
-                enemy->collisionRadius * 1.5f,
-                0.0f
-            }
-        ),
-        enemy->collisionRadius * 0.15f,
-        GREEN
-    );
+    else {
+        DrawSphere(enemy->position, enemy->collisionRadius, RED);
+    }
 }
 
 EnemyAssets LoadEnemyAssets(void) {
     EnemyAssets assets = {
-        .BigShip = LoadModel("assets/enemy/BigShip/spaceCraft3.obj"),
-        .mediumShip = LoadModel("assets/enemy/mediumShip/spaceCraft2.obj"),
-        .smallShip = LoadModel("assets/enemy/smallShip/spaceCraft1.obj")
+        .bigShip = LoadModel("assets/enemy/smallShip/Destroyer_01.fbx"),
+        .mediumShip = LoadModel("assets/enemy/smallShip/Destroyer_01.fbx"),
+        .smallShip = LoadModel("assets/enemy/smallShip/Destroyer_01.fbx")
     };
+
+    // TraceLog(
+    //     LOG_INFO,
+    //     "BigShip: %d meshes",
+    //     assets.bigShip.meshCount
+    // );
+
+    // TraceLog(
+    //     LOG_INFO,
+    //     "MediumShip: %d meshes",
+    //     assets.mediumShip.meshCount
+    // );
+
+    // TraceLog(
+    //     LOG_INFO,
+    //     "SmallShip: %d meshes",
+    //     assets.smallShip.meshCount
+    // );
+
+    // Texture2D bigShipTexture =
+    //     LoadTexture("assets/enemy/BigShip/spaceCraft3.png");
+
+    // Texture2D mediumShipTexture =
+    //     LoadTexture("assets/enemy/mediumShip/spaceCraft2.png");
+
+    // Texture2D smallShipTexture =
+    //     LoadTexture("assets/enemy/smallShip/spaceCraft1.png");
+
+    // for (int i = 0; i < assets.bigShip.materialCount; i++) {
+    //     SetMaterialTexture(
+    //         &assets.bigShip.materials[i],
+    //         MATERIAL_MAP_DIFFUSE,
+    //         bigShipTexture
+    //     );
+    // }
+
+    // for (int i = 0; i < assets.mediumShip.materialCount; i++) {
+    //     SetMaterialTexture(
+    //         &assets.mediumShip.materials[i],
+    //         MATERIAL_MAP_DIFFUSE,
+    //         mediumShipTexture
+    //     );
+    // }
+
+    // for (int i = 0; i < assets.smallShip.materialCount; i++) {
+    //     SetMaterialTexture(
+    //         &assets.smallShip.materials[i],
+    //         MATERIAL_MAP_DIFFUSE,
+    //         smallShipTexture
+    //     );
+    // }
+
+    return assets;
+}
+
+void UnloadEnemyAssets(EnemyAssets *assets) {
+    UnloadModel(assets->bigShip);
+    UnloadModel(assets->mediumShip);
+    UnloadModel(assets->smallShip);
 }
