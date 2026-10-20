@@ -24,11 +24,11 @@ void UIInit(void) {
 
 
     planetBarTexture = LoadTexture(
-        "assets/ui/Bars/Blue/x1/Asset 11.png"
+        "assets/ui/Bars/Purple/Bar 2/0.5x/Asset 11@0.5x.png"
     );
 
     maxPlanetBarTexture = LoadTexture(
-        "assets/ui/Bars/Blue/x1/Asset 7.png"
+        "assets/ui/Bars/Purple/Bar 2/0.5x/Asset 7@0.5x.png"
     );
 
     xpBarTexture = LoadTexture(
@@ -68,7 +68,6 @@ static void UIDrawBar(
         x, y, width, height
     };
 
-    // 1. Desenha a barra vazia.
     DrawTexturePro(
         emptyTexture,
         (Rectangle){
@@ -82,7 +81,6 @@ static void UIDrawBar(
         WHITE
     );
 
-    // 2. Desenha apenas a parte preenchida.
     DrawTexturePro(
         fullTexture,
         (Rectangle){
@@ -122,11 +120,11 @@ void UIDrawHUD(
         playerMaxHealth
     );
 
-    // UIDrawBar(
+    //  UIDrawBar(
     //     planetBarTexture,
     //     maxPlanetBarTexture,
-    //     30, 170,
-    //     250, 30,
+    //     30, 1000,
+    //     1700, 15,
     //     planetHealth,
     //     planetMaxHealth
     // );
@@ -143,8 +141,8 @@ void UIDrawHUD(
         maxXpBarTexture,
         30, 195,
         320, 30,
-        70,
-        100
+        currentXP,
+        requiredXP
     );
 }
 

@@ -45,6 +45,8 @@ typedef struct Enemy {
     int health;
     int maxHealth;
 
+    int xpReward;
+
     bool wantsToShoot;
     EnemyState state;
 

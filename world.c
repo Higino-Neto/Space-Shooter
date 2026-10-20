@@ -296,7 +296,10 @@ static void HandlePlayerShooting(
     World *world
 )
 {
-    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    if (!IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+        return;
+    
+    if (world->player.fireTimer != 0)
         return;
 
     Projectile projectile =
@@ -312,6 +315,8 @@ static void HandlePlayerShooting(
         world,
         projectile
     );
+
+    world->player.fireTimer = world->player.fireCooldown;
 }
 
 static void HandleEnemyShooting(
@@ -489,6 +494,10 @@ static bool ProjectileHitsEnemy(
                 enemy,
                 projectile->damage
             );
+
+            if (!enemy->alive) {
+                PlayerAddXP(&world->player, enemy->xpReward);
+            }
 
             projectile->active = false;
 

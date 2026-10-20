@@ -178,7 +178,7 @@ int main(void) {
             // DrawText(TextFormat("Z: %.2f", world.player.position.z), 10, 160, 20, RED);
             // DrawText(TextFormat("Planet Damage: %d", world.planets[0].deformationCount), 10, 200, 20, RED);
             // DrawText(TextFormat("Enemies: %d", world.enemyCount), 10, 240, 20, RED);
-
+                // DrawText(TextFormat("Level:"));
 
             UIDrawHUD(
                 world.player.health,

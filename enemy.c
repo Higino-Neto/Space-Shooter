@@ -953,12 +953,14 @@ Enemy CreateEnemy(Vector3 position, const Planet *planet) {
     enemy.maxTurnRate = 140.0f;
 
     enemy.strength = 10.0f;
-    enemy.collisionRadius = 32.5f;
+    enemy.collisionRadius = 45.5f;
     enemy.shootCooldown = 0.3f;
     enemy.shootTimer = 0.0f;
 
     enemy.maxHealth = 30;
     enemy.health = enemy.maxHealth;
+
+    enemy.xpReward = 25;
 
     enemy.state = ENEMY_PATROL;
     enemy.detectionRadius = 1500.0f;

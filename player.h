@@ -22,6 +22,11 @@ typedef struct {
     float roll;
     float targetRoll;
 
+    float fireCooldown;
+    float fireTimer;
+    float damage;
+    float xpMultiplier;
+
     bool rollManeuverActive;
     float rollManeuverProgress;
     float rollManeuverDirection;
@@ -35,6 +40,7 @@ typedef struct {
     int level;
     int currentXP;
     int requiredXP;
+    int pendingLevelUps;
 
     Trail trails[2];
     TrailConfig trailConfig;
@@ -87,6 +93,10 @@ void DamagePlayer(
     Player *player,
     float damage
 );
+
+int PlayerRequiredXPForLevel(int level);
+
+void PlayerAddXP(Player *, int);
 
 void UnloadPlayer(Player *player);
 

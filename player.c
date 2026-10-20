@@ -22,6 +22,11 @@ Player CreatePlayer()
     player.speed = 300.0f;
     player.collisionRadius = 40.0f;
 
+    player.fireCooldown = 0.75f;
+    player.damage = 10;
+
+    player.requiredXP = 100;
+
     player.acceleration = 400.0f;
     player.deceleration = 100.0f;
     player.turnResponsiveness = 4.0f;
@@ -90,6 +95,11 @@ void UpdatePlayer(
     float deltaTime = GetFrameTime();
 
     // ResolvePlanetCollision(player, planet);
+    if (player->fireTimer > 0) {
+        player->fireTimer -= deltaTime;
+    } else {
+        player->fireTimer = 0;
+    }
 
     Vector3 input = { 0 };
 
@@ -424,6 +434,20 @@ void DamagePlayer(
         player->health = 0;
 }
 
+void PlayerAddXP(Player *player, int xpReward) {
+    player->currentXP += xpReward;
+
+    while(player->currentXP >= player->requiredXP) {
+        player->currentXP -= player->requiredXP;
+        player->level++;
+        player->pendingLevelUps++;
+        player->requiredXP = PlayerRequiredXPForLevel(player->level);
+    }
+}
+
+int PlayerRequiredXPForLevel(int level) {
+    return 100 * powf(1.2, level-1);
+}
 
 void UnloadPlayer(Player *player)
 {
