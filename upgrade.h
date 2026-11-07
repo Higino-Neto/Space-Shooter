@@ -1,5 +1,7 @@
-#ifdef UPGRADE_H
+#ifndef UPGRADE_H
 #define UPGRADE_H
+
+#define UPGRADE_CHOICES 3
 
 #include "player.h"
 
@@ -14,6 +16,10 @@ typedef struct {
     const char *description;
     void (*apply)(Player *player);
 } Upgrade;
+
+void GetRandomUpgrades(
+    Upgrade choices[UPGRADE_CHOICES]
+);
 
 const Upgrade *GetUpgradePool(int *count);
 void RollUpgradeChoices(Upgrade outChoices[3], int choiceCount);

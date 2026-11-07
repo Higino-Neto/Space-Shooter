@@ -25,7 +25,7 @@ int main(void) {
     World world = CreateWorld();
 
     Skybox skybox = LoadSkybox(
-        "assets/background/blink/cubemap.png"
+        "assets/background/ablaze/cubemap.png"
     );
 
     Player player = CreatePlayer();
