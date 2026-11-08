@@ -4,15 +4,14 @@
 #include "noise.h"
 #include <stdio.h>
 
-
 Planet CreatePlanet(
     float radius,
     int resolution,
     float seed,
     float heightAmplitude,
-    Material material
-) {
-    Planet planet = { 0 };
+    Material material)
+{
+    Planet planet = {0};
 
     planet.radius = radius;
 
@@ -23,8 +22,7 @@ Planet CreatePlanet(
     planet.position = (Vector3){
         0.0f,
         0.0f,
-        0.0f
-    };
+        0.0f};
     planet.seed = seed;
 
     planet.resolution = resolution;
@@ -32,7 +30,8 @@ Planet CreatePlanet(
     planet.maxHealth = 100;
     planet.health = planet.maxHealth;
 
-    for (int face = 0; face < 6; face++) {
+    for (int face = 0; face < 6; face++)
+    {
         planet.faces[face] =
             CreatePlanetPatch(
                 face,
@@ -43,84 +42,76 @@ Planet CreatePlanet(
                 resolution,
                 radius,
                 seed,
-                heightAmplitude
-            );
+                heightAmplitude);
     }
 
     return planet;
 }
 
-
 Vector3 CubePointUV(
     int face,
     float u,
-    float v
-) {
+    float v)
+{
     Vector3 point;
 
-    switch (face) {
+    switch (face)
+    {
 
-        // +X
-        case 0:
-            point = (Vector3){
-                1.0f,
-                v,
-                -u
-            };
-            break;
+    // +X
+    case 0:
+        point = (Vector3){
+            1.0f,
+            v,
+            -u};
+        break;
 
-        // -X
-        case 1:
-            point = (Vector3){
-                -1.0f,
-                v,
-                u
-            };
-            break;
+    // -X
+    case 1:
+        point = (Vector3){
+            -1.0f,
+            v,
+            u};
+        break;
 
-        // +Y
-        case 2:
-            point = (Vector3){
-                u,
-                1.0f,
-                v
-            };
-            break;
+    // +Y
+    case 2:
+        point = (Vector3){
+            u,
+            1.0f,
+            v};
+        break;
 
-        // -Y
-        case 3:
-            point = (Vector3){
-                u,
-                -1.0f,
-                -v
-            };
-            break;
+    // -Y
+    case 3:
+        point = (Vector3){
+            u,
+            -1.0f,
+            -v};
+        break;
 
-        // +Z
-        case 4:
-            point = (Vector3){
-                u,
-                v,
-                1.0f
-            };
-            break;
+    // +Z
+    case 4:
+        point = (Vector3){
+            u,
+            v,
+            1.0f};
+        break;
 
-        // -Z
-        case 5:
-            point = (Vector3){
-                -u,
-                v,
-                -1.0f
-            };
-            break;
+    // -Z
+    case 5:
+        point = (Vector3){
+            -u,
+            v,
+            -1.0f};
+        break;
 
-        default:
-            return (Vector3){ 0 };
+    default:
+        return (Vector3){0};
     }
 
     return Vector3Normalize(point);
 }
-
 
 PlanetPatch CreatePlanetPatch(
     int face,
@@ -131,9 +122,9 @@ PlanetPatch CreatePlanetPatch(
     int resolution,
     float radius,
     float seed,
-    float heightAmplitude
-) {
-    PlanetPatch patch = { 0 };
+    float heightAmplitude)
+{
+    PlanetPatch patch = {0};
 
     patch.face = face;
 
@@ -164,31 +155,28 @@ PlanetPatch CreatePlanetPatch(
 
     patch.mesh.vertices =
         MemAlloc(
-            vertexCount * 3 * sizeof(float)
-        );
+            vertexCount * 3 * sizeof(float));
 
     patch.mesh.normals =
         MemAlloc(
-            vertexCount * 3 * sizeof(float)
-        );
+            vertexCount * 3 * sizeof(float));
 
     patch.mesh.indices =
         MemAlloc(
-            indexCount * sizeof(unsigned short)
-        );
+            indexCount * sizeof(unsigned short));
 
-    patch.mesh.texcoords = 
+    patch.mesh.texcoords =
         MemAlloc(
-            vertexCount * 2 * sizeof(float)
-        );
+            vertexCount * 2 * sizeof(float));
 
-    patch.originalVertices = 
+    patch.originalVertices =
         MemAlloc(
-            vertexCount * 3 * sizeof(float)
-        );
+            vertexCount * 3 * sizeof(float));
 
-    for (int y = 0; y < resolution; y++) {
-        for (int x = 0; x < resolution; x++) {
+    for (int y = 0; y < resolution; y++)
+    {
+        for (int x = 0; x < resolution; x++)
+        {
 
             float tx =
                 (float)x / (resolution - 1);
@@ -203,28 +191,25 @@ PlanetPatch CreatePlanetPatch(
             float v =
                 vMin +
                 (vMax - vMin) * ty;
-            
+
             int index = y * resolution + x;
 
             Vector3 direction =
                 CubePointUV(
                     face,
                     u,
-                    v
-                );
+                    v);
 
             float height =
                 GetTerrainHeight(
                     direction,
                     seed,
-                    heightAmplitude
-                );
+                    heightAmplitude);
 
             Vector3 position =
                 Vector3Scale(
                     direction,
-                    radius + height
-                );
+                    radius + height);
 
             patch.mesh.vertices[index * 3 + 0] =
                 position.x;
@@ -235,16 +220,14 @@ PlanetPatch CreatePlanetPatch(
             patch.mesh.vertices[index * 3 + 2] =
                 position.z;
 
-
-            patch.originalVertices[index * 3 + 0] = 
+            patch.originalVertices[index * 3 + 0] =
                 position.x;
 
-            patch.originalVertices[index * 3 + 1] = 
+            patch.originalVertices[index * 3 + 1] =
                 position.y;
 
-            patch.originalVertices[index * 3 + 2] = 
+            patch.originalVertices[index * 3 + 2] =
                 position.z;
-
 
             patch.mesh.normals[index * 3 + 0] =
                 direction.x;
@@ -257,14 +240,15 @@ PlanetPatch CreatePlanetPatch(
 
             patch.mesh.texcoords[index * 2 + 0] = tx;
             patch.mesh.texcoords[index * 2 + 1] = ty;
-
         }
     }
 
     int indexOffset = 0;
 
-    for (int y = 0; y < resolution - 1; y++) {
-        for (int x = 0; x < resolution - 1; x++) {
+    for (int y = 0; y < resolution - 1; y++)
+    {
+        for (int x = 0; x < resolution - 1; x++)
+        {
 
             unsigned short topLeft =
                 y * resolution + x;
@@ -281,20 +265,17 @@ PlanetPatch CreatePlanetPatch(
             Vector3 A = {
                 patch.mesh.vertices[topLeft * 3 + 0],
                 patch.mesh.vertices[topLeft * 3 + 1],
-                patch.mesh.vertices[topLeft * 3 + 2]
-            };
+                patch.mesh.vertices[topLeft * 3 + 2]};
 
             Vector3 B = {
                 patch.mesh.vertices[bottomLeft * 3 + 0],
                 patch.mesh.vertices[bottomLeft * 3 + 1],
-                patch.mesh.vertices[bottomLeft * 3 + 2]
-            };
+                patch.mesh.vertices[bottomLeft * 3 + 2]};
 
             Vector3 C = {
                 patch.mesh.vertices[topRight * 3 + 0],
                 patch.mesh.vertices[topRight * 3 + 1],
-                patch.mesh.vertices[topRight * 3 + 2]
-            };
+                patch.mesh.vertices[topRight * 3 + 2]};
 
             Vector3 AB =
                 Vector3Subtract(B, A);
@@ -308,7 +289,8 @@ PlanetPatch CreatePlanetPatch(
             float orientation =
                 Vector3DotProduct(normal, A);
 
-            if (orientation > 0.0f) {
+            if (orientation > 0.0f)
+            {
 
                 patch.mesh.indices[indexOffset++] =
                     topLeft;
@@ -318,8 +300,9 @@ PlanetPatch CreatePlanetPatch(
 
                 patch.mesh.indices[indexOffset++] =
                     topRight;
-
-            } else {
+            }
+            else
+            {
 
                 patch.mesh.indices[indexOffset++] =
                     topLeft;
@@ -334,20 +317,17 @@ PlanetPatch CreatePlanetPatch(
             A = (Vector3){
                 patch.mesh.vertices[topRight * 3 + 0],
                 patch.mesh.vertices[topRight * 3 + 1],
-                patch.mesh.vertices[topRight * 3 + 2]
-            };
+                patch.mesh.vertices[topRight * 3 + 2]};
 
             B = (Vector3){
                 patch.mesh.vertices[bottomLeft * 3 + 0],
                 patch.mesh.vertices[bottomLeft * 3 + 1],
-                patch.mesh.vertices[bottomLeft * 3 + 2]
-            };
+                patch.mesh.vertices[bottomLeft * 3 + 2]};
 
             C = (Vector3){
                 patch.mesh.vertices[bottomRight * 3 + 0],
                 patch.mesh.vertices[bottomRight * 3 + 1],
-                patch.mesh.vertices[bottomRight * 3 + 2]
-            };
+                patch.mesh.vertices[bottomRight * 3 + 2]};
 
             AB =
                 Vector3Subtract(B, A);
@@ -361,7 +341,8 @@ PlanetPatch CreatePlanetPatch(
             orientation =
                 Vector3DotProduct(normal, A);
 
-            if (orientation > 0.0f) {
+            if (orientation > 0.0f)
+            {
 
                 patch.mesh.indices[indexOffset++] =
                     topRight;
@@ -371,8 +352,9 @@ PlanetPatch CreatePlanetPatch(
 
                 patch.mesh.indices[indexOffset++] =
                     bottomRight;
-
-            } else {
+            }
+            else
+            {
 
                 patch.mesh.indices[indexOffset++] =
                     topRight;
@@ -388,8 +370,7 @@ PlanetPatch CreatePlanetPatch(
 
     UploadMesh(
         &patch.mesh,
-        false
-    );
+        false);
 
     return patch;
 }
@@ -419,20 +400,17 @@ PlanetPatch CreatePlanetPatch(
 //     return distance < surfaceRadius + objectRadius;
 // }
 
-
 bool PlanetContainsSphere(
     const Planet *planet,
     Vector3 point,
-    float objectRadius
-)
+    float objectRadius)
 {
     if (planet == NULL)
         return false;
 
     Vector3 offset = Vector3Subtract(
         point,
-        planet->position
-    );
+        planet->position);
 
     float distance = Vector3Length(offset);
 
@@ -441,14 +419,12 @@ bool PlanetContainsSphere(
 
     Vector3 direction = Vector3Scale(
         offset,
-        1.0f / distance
-    );
+        1.0f / distance);
 
     float height = GetTerrainHeight(
         direction,
         planet->seed,
-        planet->heightAmplitude
-    );
+        planet->heightAmplitude);
 
     float surfaceRadius = planet->radius + height;
 
@@ -465,8 +441,7 @@ bool PlanetContainsSphere(
 
         float dot = Vector3DotProduct(
             direction,
-            deformation->direction
-        );
+            deformation->direction);
 
         float minDot = cosf(deformation->radius);
 
@@ -474,8 +449,7 @@ bool PlanetContainsSphere(
             continue;
 
         float angle = acosf(
-            Clamp(dot, -1.0f, 1.0f)
-        );
+            Clamp(dot, -1.0f, 1.0f));
 
         float t = angle / deformation->radius;
 
@@ -494,13 +468,13 @@ bool PlanetContainsSphere(
 
 void UpdatePlanet(
     Planet *planet,
-    Vector3 cameraPosition
-) {
+    Vector3 cameraPosition)
+{
     if (
         planet->deformationCount >
-        planet->appliedDeformationCount
-    ) {
-        
+        planet->appliedDeformationCount)
+    {
+
         UpdatePlanetPatch(planet);
 
         planet->appliedDeformationCount =
@@ -510,8 +484,7 @@ void UpdatePlanet(
 
 void DrawPlanet(
     Planet *planet,
-    Material material
-)
+    Material material)
 {
     if (planet == NULL)
         return;
@@ -521,29 +494,25 @@ void DrawPlanet(
     int deformationCountLoc =
         GetShaderLocation(
             shader,
-            "deformationCount"
-        );
+            "deformationCount");
 
     int deformationDataLoc =
         GetShaderLocation(
             shader,
-            "deformationData"
-        );
+            "deformationData");
 
     SetShaderValue(
         shader,
         deformationCountLoc,
         &planet->deformationCount,
-        SHADER_UNIFORM_INT
-    );
+        SHADER_UNIFORM_INT);
 
-    Vector4 deformationData[MAX_DEFORMATIONS] = { 0 };
+    Vector4 deformationData[MAX_DEFORMATIONS] = {0};
 
     for (
         int i = 0;
         i < planet->deformationCount;
-        i++
-    )
+        i++)
     {
         TerrainDeformation *deformation =
             &planet->deformations[i];
@@ -553,20 +522,18 @@ void DrawPlanet(
                 deformation->direction.x,
                 deformation->direction.y,
                 deformation->direction.z,
-                deformation->radius
-            };
+                deformation->radius};
     }
 
-if (planet->deformationCount > 0)
-{
-    SetShaderValueV(
-        shader,
-        deformationDataLoc,
-        deformationData,
-        SHADER_UNIFORM_VEC4,
-        planet->deformationCount
-    );
-}
+    if (planet->deformationCount > 0)
+    {
+        SetShaderValueV(
+            shader,
+            deformationDataLoc,
+            deformationData,
+            SHADER_UNIFORM_VEC4,
+            planet->deformationCount);
+    }
 
     for (int face = 0; face < 6; face++)
     {
@@ -576,33 +543,29 @@ if (planet->deformationCount > 0)
             MatrixTranslate(
                 planet->position.x,
                 planet->position.y,
-                planet->position.z
-            )
-        );
+                planet->position.z));
     }
 }
 
-void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage) {
+void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage)
+{
 
-    if (planet->deformationCount >= MAX_DEFORMATIONS) {
+    if (planet->deformationCount >= MAX_DEFORMATIONS)
+    {
         return;
     }
 
     Vector3 impactDirection = Vector3Normalize(
         Vector3Subtract(
             impactPoint,
-            planet->position
-        )
-    );
+            planet->position));
 
     TerrainDeformation deformation = {
         .direction = impactDirection,
         .radius = 0.01f * damage,
-        .strength = damage
-    };
+        .strength = damage};
 
     planet->deformations[planet->deformationCount++] = deformation;
-
 }
 
 // void UpdatePlanetPatch(Planet *planet) {
@@ -618,11 +581,11 @@ void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage) {
 //         int vertexCount = patch->mesh.vertexCount;
 
 //         for(int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
-        
+
 //                 Vector3 originalPosition = {
 //                     patch->originalVertices[vertexIndex * 3 + 0],
 //                     patch->originalVertices[vertexIndex * 3 + 1],
-//                     patch->originalVertices[vertexIndex * 3 + 2] 
+//                     patch->originalVertices[vertexIndex * 3 + 2]
 //                 };
 
 //                 Vector3 vertexDirection = Vector3Normalize(originalPosition);
@@ -653,21 +616,21 @@ void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage) {
 
 //                     float minRadius = planet->radius * MIN_PLANET_RADIUS_RATIO;
 
-//                     float maxDisplacement = 
+//                     float maxDisplacement =
 //                         currentRadius - minRadius;
 
 //                     if (maxDisplacement <= 0.0f) {
 //                         break;
 //                     }
 
-//                     float actualDisplacement = 
+//                     float actualDisplacement =
 //                         fminf(
 //                             displacement,
 //                             maxDisplacement
 //                         );
 
 //                     currentPosition = Vector3Subtract(
-//                         currentPosition, 
+//                         currentPosition,
 //                         Vector3Scale(
 //                             vertexDirection,
 //                             actualDisplacement
@@ -691,8 +654,6 @@ void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage) {
 //             0
 //         );
 
-
-
 //         UpdateMeshBuffer(
 //             patch->mesh,
 //             2,
@@ -700,12 +661,10 @@ void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage) {
 //             vertexCount * 3 * sizeof(float),
 //             0
 //         );
-        
 
 //     }
 
 //     end = GetTime();
-
 
 // }
 
@@ -759,23 +718,20 @@ void UpdatePlanetPatch(Planet *planet)
                 Vector3 originalPosition = {
                     patch->originalVertices[offset],
                     patch->originalVertices[offset + 1],
-                    patch->originalVertices[offset + 2]
-                };
+                    patch->originalVertices[offset + 2]};
 
                 Vector3 direction =
                     Vector3Normalize(originalPosition);
 
                 float dot = Vector3DotProduct(
                     deformation->direction,
-                    direction
-                );
+                    direction);
 
                 if (dot < minDot)
                     continue;
 
                 float angle = acosf(
-                    Clamp(dot, -1.0f, 1.0f)
-                );
+                    Clamp(dot, -1.0f, 1.0f));
 
                 float t = angle / craterRadius;
 
@@ -788,8 +744,7 @@ void UpdatePlanetPatch(Planet *planet)
                 Vector3 currentPosition = {
                     patch->mesh.vertices[offset],
                     patch->mesh.vertices[offset + 1],
-                    patch->mesh.vertices[offset + 2]
-                };
+                    patch->mesh.vertices[offset + 2]};
 
                 float currentRadius =
                     Vector3Length(currentPosition);
@@ -805,8 +760,7 @@ void UpdatePlanetPatch(Planet *planet)
 
                 currentPosition = Vector3Subtract(
                     currentPosition,
-                    Vector3Scale(direction, displacement)
-                );
+                    Vector3Scale(direction, displacement));
 
                 patch->mesh.vertices[offset] =
                     currentPosition.x;
@@ -832,32 +786,31 @@ void UpdatePlanetPatch(Planet *planet)
             0,
             patch->mesh.vertices,
             vertexCount * 3 * sizeof(float),
-            0
-        );
+            0);
 
         UpdateMeshBuffer(
             patch->mesh,
             2,
             patch->mesh.normals,
             vertexCount * 3 * sizeof(float),
-            0
-        );
+            0);
     }
 }
-
 
 void RecalculatePlanetPatchNormals(PlanetPatch *patch)
 {
     int vertexCount = patch->mesh.vertexCount;
     int indexCount = patch->mesh.triangleCount * 3;
 
-    for (int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+    for (int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
+    {
         patch->mesh.normals[vertexIndex * 3 + 0] = 0.0f;
         patch->mesh.normals[vertexIndex * 3 + 1] = 0.0f;
         patch->mesh.normals[vertexIndex * 3 + 2] = 0.0f;
     }
 
-    for (int i = 0; i < indexCount; i += 3) {
+    for (int i = 0; i < indexCount; i += 3)
+    {
 
         unsigned short indexA =
             patch->mesh.indices[i + 0];
@@ -871,20 +824,17 @@ void RecalculatePlanetPatchNormals(PlanetPatch *patch)
         Vector3 A = {
             patch->mesh.vertices[indexA * 3 + 0],
             patch->mesh.vertices[indexA * 3 + 1],
-            patch->mesh.vertices[indexA * 3 + 2]
-        };
+            patch->mesh.vertices[indexA * 3 + 2]};
 
         Vector3 B = {
             patch->mesh.vertices[indexB * 3 + 0],
             patch->mesh.vertices[indexB * 3 + 1],
-            patch->mesh.vertices[indexB * 3 + 2]
-        };
+            patch->mesh.vertices[indexB * 3 + 2]};
 
         Vector3 C = {
             patch->mesh.vertices[indexC * 3 + 0],
             patch->mesh.vertices[indexC * 3 + 1],
-            patch->mesh.vertices[indexC * 3 + 2]
-        };
+            patch->mesh.vertices[indexC * 3 + 2]};
 
         Vector3 AB =
             Vector3Subtract(B, A);
@@ -908,13 +858,13 @@ void RecalculatePlanetPatchNormals(PlanetPatch *patch)
         patch->mesh.normals[indexC * 3 + 2] += normal.z;
     }
 
-    for (int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+    for (int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
+    {
 
         Vector3 normal = {
             patch->mesh.normals[vertexIndex * 3 + 0],
             patch->mesh.normals[vertexIndex * 3 + 1],
-            patch->mesh.normals[vertexIndex * 3 + 2]
-        };
+            patch->mesh.normals[vertexIndex * 3 + 2]};
 
         normal = Vector3Normalize(normal);
 

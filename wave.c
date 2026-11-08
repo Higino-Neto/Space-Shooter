@@ -8,16 +8,16 @@ EnemyWave CreateWave(Planet planet, const EnemyAssets *assets) {
    EnemyWave wave = { 0 };
    
    Enemy smallShip = CreateEnemy((Vector3) { 500.0f, 500.0f, 500.0f }, &planet);
-   smallShip.collisionRadius = 20.0f;
+   smallShip.collisionRadius = 40.0f;
    smallShip.visualModel = &assets->smallShip;
    smallShip.modelScale = 0.04f;
-   smallShip.xpReward = 25;
+   smallShip.xpReward = 75;
 
    Enemy bigShip = CreateEnemy((Vector3) { -500.0f, -500.0f, -500.0f }, &planet);
-   bigShip.collisionRadius = 50.0f;
+   bigShip.collisionRadius = 80.0f;
    bigShip.visualModel = &assets->bigShip;
    bigShip.modelScale = 0.04f;
-   bigShip.xpReward = 75;
+   bigShip.xpReward = 150;
 
    wave.enemyGroup[0] = (EnemyGroup) {
       .model = smallShip,

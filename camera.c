@@ -6,21 +6,19 @@
 
 Camera3D CreateCamera(Player player)
 {
-    Camera3D camera = { 0 };
+    Camera3D camera = {0};
 
     camera.position = (Vector3){
         0.0f,
         50.0f,
-        300.0f
-    };
+        300.0f};
 
     camera.target = player.position;
 
     camera.up = (Vector3){
         0.0f,
         1.0f,
-        0.0f
-    };
+        0.0f};
 
     camera.fovy = 110.0f;
     camera.projection = CAMERA_PERSPECTIVE;
@@ -30,7 +28,7 @@ Camera3D CreateCamera(Player player)
 
 GameCamera CreateGameCamera()
 {
-    GameCamera camera = { 0 };
+    GameCamera camera = {0};
 
     camera.baseFov = 60.0f;
     camera.currentFov = camera.baseFov;
@@ -41,24 +39,24 @@ GameCamera CreateGameCamera()
     camera.roll = 0.0f;
     camera.targetRoll = 0.0f;
 
-    camera.position = (Vector3){ 0.0f };
-    camera.target = (Vector3){ 0.0f };
+    camera.position = (Vector3){0.0f};
+    camera.target = (Vector3){0.0f};
 
     return camera;
 }
 
-CameraController CreateCameraController() {
+CameraController CreateCameraController()
+{
     CameraController controller = {
         .pitch = 0.0f,
         .yaw = 0.0f,
-        .sensitivity = 0.005f
-    };
+        .sensitivity = 0.005f};
 
     return controller;
 }
 
-Vector3 GetForwardDirection(CameraController *controller) {
-    
+Vector3 GetForwardDirection(CameraController *controller)
+{
 
     float deltaX = sinf(controller->yaw);
     float deltaY = sinf(controller->pitch);
@@ -67,25 +65,25 @@ Vector3 GetForwardDirection(CameraController *controller) {
     Vector3 forward = {
         deltaX,
         deltaY,
-        deltaZ
-    };
+        deltaZ};
 
     return forward;
 }
 
-Vector3 GetHorizontalForwardDirection(CameraController *controller) {
+Vector3 GetHorizontalForwardDirection(CameraController *controller)
+{
     float yaw = controller->yaw;
 
     Vector3 horizontalForward = {
         sinf(yaw),
         0.0f,
-        -cosf(yaw)
-    };
+        -cosf(yaw)};
 
     return horizontalForward;
 }
 
-void UpdateCameraController(CameraController *controller) {
+void UpdateCameraController(CameraController *controller)
+{
     Vector2 mouseDelta = GetMouseDelta();
     controller->yaw += mouseDelta.x * controller->sensitivity;
     controller->pitch -= mouseDelta.y * controller->sensitivity;
@@ -102,8 +100,7 @@ void UpdateGameCamera(
     Camera3D *camera,
     CameraController *controller,
     const Player *player,
-    float deltaTime
-)
+    float deltaTime)
 {
     if (gameCamera == NULL ||
         camera == NULL ||
@@ -123,8 +120,7 @@ void UpdateGameCamera(
         Clamp(
             playerSpeed / player->speed,
             0.0f,
-            1.0f
-        );
+            1.0f);
 
     float targetFov =
         gameCamera->baseFov +
@@ -132,15 +128,13 @@ void UpdateGameCamera(
 
     float fovT =
         1.0f - expf(
-            -6.0f * deltaTime
-        );
+                   -6.0f * deltaTime);
 
     gameCamera->currentFov =
         Lerp(
             gameCamera->currentFov,
             targetFov,
-            fovT
-        );
+            fovT);
 
     camera->fovy =
         gameCamera->currentFov;
@@ -153,36 +147,29 @@ void UpdateGameCamera(
             player->position,
             Vector3Scale(
                 forward,
-                -distance
-            )
-        );
+                -distance));
 
     desiredPosition.y += height;
 
     float positionT =
         1.0f - expf(
-            -8.0f * deltaTime
-        );
+                   -8.0f * deltaTime);
 
     gameCamera->position =
         Vector3Lerp(
             gameCamera->position,
             desiredPosition,
-            positionT
-        );
+            positionT);
 
     float targetT =
         1.0f - expf(
-            -12.0f * deltaTime
-        );
+                   -12.0f * deltaTime);
 
     gameCamera->target =
         Vector3Lerp(
             gameCamera->target,
             player->position,
-            targetT
-        );
-
+            targetT);
 
     camera->position =
         gameCamera->position;

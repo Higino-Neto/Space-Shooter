@@ -5,8 +5,8 @@
 static float Hash3D(
     int x,
     int y,
-    int z
-) {
+    int z)
+{
     unsigned int h =
         (unsigned int)x * 374761393u +
         (unsigned int)y * 668265263u +
@@ -19,26 +19,26 @@ static float Hash3D(
     h ^= h >> 16;
 
     return (float)(h & 0x7fffffff) /
-           1073741823.5f * 2.0f - 1.0f;
+               1073741823.5f * 2.0f -
+           1.0f;
 }
 
-
-static float NoiseFade(float t) {
+static float NoiseFade(float t)
+{
     return t * t * t *
            (t * (t * 6.0f - 15.0f) + 10.0f);
 }
 
-
 static float NoiseLerp(
     float a,
     float b,
-    float t
-) {
+    float t)
+{
     return a + (b - a) * t;
 }
 
-
-float Noise3D(Vector3 position) {
+float Noise3D(Vector3 position)
+{
     int x0 = (int)floorf(position.x);
     int y0 = (int)floorf(position.y);
     int z0 = (int)floorf(position.z);
@@ -105,17 +105,15 @@ float Noise3D(Vector3 position) {
     return NoiseLerp(
         nxy0,
         nxy1,
-        sz
-    );
+        sz);
 }
-
 
 float FBM(
     Vector3 position,
     int octaves,
     float lacunarity,
-    float gain
-) {
+    float gain)
+{
     float value = 0.0f;
 
     float amplitude = 2.0f;
@@ -124,13 +122,13 @@ float FBM(
 
     float amplitudeSum = 0.0f;
 
-    for (int i = 0; i < octaves; i++) {
+    for (int i = 0; i < octaves; i++)
+    {
 
         Vector3 sample =
             Vector3Scale(
                 position,
-                frequency
-            );
+                frequency);
 
         value +=
             Noise3D(sample) *
@@ -142,24 +140,23 @@ float FBM(
         amplitude *= gain;
     }
 
-    if (amplitudeSum == 0.0f) {
+    if (amplitudeSum == 0.0f)
+    {
         return 0.0f;
     }
 
     return value / amplitudeSum;
 }
 
-
 float GetTerrainHeight(
     Vector3 direction,
     float seed,
-    float amplitude
-) {
+    float amplitude)
+{
     Vector3 sample =
         Vector3Scale(
             direction,
-            2.0f
-        );
+            2.0f);
 
     sample.x += seed;
     sample.y += seed * 1.37f;
@@ -170,8 +167,7 @@ float GetTerrainHeight(
             sample,
             6,
             2.0f,
-            0.5f
-        );
+            0.5f);
 
     return value * amplitude;
 }

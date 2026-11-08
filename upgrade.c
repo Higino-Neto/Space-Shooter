@@ -24,8 +24,9 @@ static void ApplyHeal(Player *p) {
 
     if (heal + p->health >= p->maxHealth)
         p->health = p->maxHealth;
-    
-    p->health += heal;
+    else
+        p->health += heal;
+   
 }
 
 static const Upgrade upgrades[UPGRADE_COUNT] = {
@@ -83,7 +84,7 @@ void GetRandomUpgrades(Upgrade choices[UPGRADE_CHOICES]) {
         }
 
         if (!alreadyChosen) {
-            choices[count].type = choice;
+            choices[count] = upgrades[choice];
             count++;
         }
     }
