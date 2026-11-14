@@ -163,6 +163,9 @@ World CreateWorld() {
     world.gameCamera =
         CreateGameCamera();
 
+    world.targeting =
+        CreateTargetingSystem();
+
     return world;
 }
 
@@ -321,6 +324,15 @@ static void HandlePlayerShooting(
 
     Vector3 shotDirection = Vector3Normalize(
         Vector3Subtract(aimPoint, muzzle)
+    );
+
+    TargetingResolveShot(
+        &world->targeting,
+        world->enemies,
+        world->enemyCount,
+        muzzle,
+        1500.0f,
+        &shotDirection
     );
 
     Projectile projectile = CreateProjectile(
@@ -644,6 +656,17 @@ void UpdateWorld(
     );
 
     CrosshairProject(crosshair, camera);
+
+    UpdateTargeting(
+        &world->targeting,
+        world->enemies,
+        world->enemyCount,
+        world->player.position,
+        camera,
+        controller,
+        crosshair,
+        deltaTime
+    );
 
     HandlePlayerShooting(
         world,

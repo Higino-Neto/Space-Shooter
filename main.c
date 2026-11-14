@@ -9,6 +9,7 @@
 #include "ui/ui.h"
 #include "ui/levelup.h"
 #include "ui/crosshair.h"
+#include "ui/targeting.h"
 
 #include <stdio.h>
 
@@ -183,6 +184,8 @@ int main(void)
             world.player.level,
             world.player.currentXP,
             world.player.requiredXP);
+
+        DrawTargeting(&world.targeting);
 
         CrosshairDraw(&crosshair);
 

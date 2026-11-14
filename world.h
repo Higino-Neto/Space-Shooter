@@ -9,6 +9,7 @@
 #include "wave.h"
 #include "camera.h"
 #include "ui/crosshair.h"
+#include "ui/targeting.h"
 
 #define MAX_PLANETS 10
 #define MAX_ENEMIES 100
@@ -33,6 +34,7 @@ typedef struct {
     bool waitingForNextWave;
 
     GameCamera gameCamera;
+    TargetingSystem targeting;
 } World;
 
 static float DistanceSquared(Vector3 a, Vector3 b);
