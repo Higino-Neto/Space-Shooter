@@ -27,7 +27,7 @@ Planet CreatePlanet(
 
     planet.resolution = resolution;
 
-    planet.maxHealth = 100;
+    planet.maxHealth = 15000;
     planet.health = planet.maxHealth;
 
     for (int face = 0; face < 6; face++)
@@ -553,6 +553,12 @@ void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage)
     if (planet->deformationCount >= MAX_DEFORMATIONS)
     {
         return;
+    }
+
+    if (planet->health >= damage) {
+        planet->health -= damage;
+    } else {
+        planet->health = 0;
     }
 
     Vector3 impactDirection = Vector3Normalize(

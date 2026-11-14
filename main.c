@@ -1,3 +1,4 @@
+
 #include "raylib.h"
 #include "camera.h"
 #include "player.h"
@@ -7,6 +8,7 @@
 #include "wave.h"
 #include "ui/ui.h"
 #include "ui/levelup.h"
+#include "ui/crosshair.h"
 
 #include <stdio.h>
 
@@ -19,10 +21,14 @@ static const int screenHeight = 1000;
 int main(void)
 {
     InitWindow(screenWidth, screenHeight, "Space Shooter");
+
     UIInit();
+    CrosshairInit();
+    Crosshair crosshair = CreateCrosshair();
     LevelUpInit();
+
     SetTargetFPS(60);
-    HideCursor();
+    DisableCursor();
 
     EnemyAssets enemyAssets = LoadEnemyAssets();
 
@@ -33,12 +39,13 @@ int main(void)
 
     Player player = CreatePlayer();
     player.position.x = 1200;
+
     Camera3D camera = CreateCamera(player);
     CameraController controller = CreateCameraController();
 
     Shader planetShader = LoadShader(
         "assets/shaders/planet.vs",
-        "assets/shaders/planet.fs");
+        "assets/shaders/planet_professional.frag");
 
     int planetPositionLoc = GetShaderLocation(
         planetShader,
@@ -48,32 +55,24 @@ int main(void)
         planetShader,
         "planetRadius");
 
-    int cameraPositionLoc =
-        GetShaderLocation(
-            planetShader,
-            "cameraPosition");
+    int cameraPositionLoc = GetShaderLocation(
+        planetShader,
+        "cameraPosition");
 
-    int lightDirectionLoc =
-        GetShaderLocation(
-            planetShader,
-            "lightDirection");
+    int deformationCountLoc = GetShaderLocation(
+        planetShader,
+        "deformationCount");
 
-    int deformationCountLoc =
-        GetShaderLocation(
-            planetShader,
-            "deformationCount");
-
-    int deformationDataLoc =
-        GetShaderLocation(
-            planetShader,
-            "deformationData");
+    int deformationDataLoc = GetShaderLocation(
+        planetShader,
+        "deformationData");
 
     Material material = LoadMaterialDefault();
     material.shader = planetShader;
 
     Planet planet = CreatePlanet(
         1000.0f,
-        62,
+        64,
         2.3451f,
         30.0f,
         material);
@@ -85,52 +84,64 @@ int main(void)
 
     while (!WindowShouldClose())
     {
-
-        if (!levelMenu.active && world.player.pendingLevelUps > 0)
+        if (!levelMenu.active &&
+            world.player.pendingLevelUps > 0)
+        {
             OpenLevelUpMenu(&levelMenu);
+        }
 
         if (levelMenu.active)
         {
-            ShowCursor();
-            UpgradeLevelUpMenu(&levelMenu, &world.player);
+            if(IsCursorHidden()) {
+                ShowCursor();
+                SetMousePosition(40, 40);
+            }
+
+            UpgradeLevelUpMenu(
+                &levelMenu,
+                &world.player);
         }
         else
         {
-            HideCursor();
-            UpdateWorld(&world, &controller, &camera, &enemyAssets);
+            // DisableCursor();
+
+            if (!IsCursorHidden()) {
+                DisableCursor();
+            }
+
+            // CrosshairUpdate(&crosshair);
+
+            UpdateWorld(
+                &world,
+                &controller,
+                &camera,
+                &crosshair,
+                &enemyAssets);
         }
+
         BeginDrawing();
+
         ClearBackground(BLACK);
 
         rlSetClipPlanes(0.05f, 10000.0f);
 
         BeginMode3D(camera);
+
         DrawSkybox(&skybox, camera);
+
+        Planet *activePlanet = &world.planets[0];
 
         SetShaderValue(
             planetShader,
             planetPositionLoc,
-            &planet.position,
+            &activePlanet->position,
             SHADER_UNIFORM_VEC3);
 
         SetShaderValue(
             planetShader,
             planetRadiusLoc,
-            &planet.radius,
+            &activePlanet->radius,
             SHADER_UNIFORM_FLOAT);
-
-        Vector3 lightDirection =
-            Vector3Normalize(
-                (Vector3){
-                    1.0f,
-                    0.8f,
-                    0.45f});
-
-        SetShaderValue(
-            planetShader,
-            lightDirectionLoc,
-            &lightDirection,
-            SHADER_UNIFORM_VEC3);
 
         SetShaderValue(
             planetShader,
@@ -138,35 +149,31 @@ int main(void)
             &camera.position,
             SHADER_UNIFORM_VEC3);
 
-        const float aimDistance = 90.0f;
-        const float aimVerticalOffset = 27.0f;
+        SetShaderValue(
+            planetShader,
+            deformationCountLoc,
+            &activePlanet->deformationCount,
+            SHADER_UNIFORM_INT);
 
-        Vector3 aimPosition =
-            Vector3Add(
-                world.player.position,
-                Vector3Scale(
-                    world.player.forward,
-                    aimDistance));
+        // const float aimDistance = 90.0f;
+        // const float aimVerticalOffset = 27.0f;
 
-        aimPosition.y += aimVerticalOffset;
+        // Vector3 aimPosition = Vector3Add(
+        //     world.player.position,
+        //     Vector3Scale(
+        //         world.player.forward,
+        //         aimDistance));
 
-        DrawSphere(
-            aimPosition,
-            0.8f,
-            GREEN);
+        // aimPosition.y += aimVerticalOffset;
+
+        // DrawSphere(
+        //     aimPosition,
+        //     0.8f,
+        //     GREEN);
 
         DrawWorld(&world, camera);
 
         EndMode3D();
-
-        // DrawFPS(10, 10);
-        // DrawText(TextFormat("Life: %d", world.player.health), 10, 40, 20, RED);
-        // DrawText(TextFormat("X: %.2f", world.player.position.x), 10, 80, 20, RED);
-        // DrawText(TextFormat("Y: %.2f", world.player.position.y), 10, 120, 20, RED);
-        // DrawText(TextFormat("Z: %.2f", world.player.position.z), 10, 160, 20, RED);
-        // DrawText(TextFormat("Planet Damage: %d", world.planets[0].deformationCount), 10, 200, 20, RED);
-        // DrawText(TextFormat("Enemies: %d", world.enemyCount), 10, 240, 20, RED);
-        // DrawText(TextFormat("Level:"));
 
         UIDrawHUD(
             world.player.health,
@@ -177,15 +184,23 @@ int main(void)
             world.player.currentXP,
             world.player.requiredXP);
 
+        CrosshairDraw(&crosshair);
+
         if (levelMenu.active)
+        {
             DrawLevelUpMenu(&levelMenu);
+        }
+
         EndDrawing();
     }
 
     UnloadSkybox(&skybox);
     UnloadPlayer(&world.player);
+    UnloadShader(planetShader);
+
     UIShutdown();
     LevelUpShutdown();
+
     CloseWindow();
 
     return 0;

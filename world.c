@@ -3,6 +3,7 @@
 #include "player.h"
 #include "planet.h"
 #include "wave.h"
+#include "ui/crosshair.h"
 
 #include "raylib.h"
 #include "raymath.h"
@@ -293,7 +294,9 @@ static void UpdateWorldPlayer(
 }
 
 static void HandlePlayerShooting(
-    World *world
+    World *world,
+    const Crosshair *crosshair,
+    const Camera *camera
 )
 {
     if (!IsMouseButtonDown(MOUSE_LEFT_BUTTON))
@@ -302,21 +305,51 @@ static void HandlePlayerShooting(
     if (world->player.fireTimer != 0)
         return;
 
-    Projectile projectile =
-        CreateProjectile(
-            world->player.position,
-            world->player.forward,
-            10.0f,
-            1500.0f,
-            0
-        );
+    Ray aimRay = GetScreenToWorldRay(crosshair->aim, *camera);
 
-    WorldAddProjectile(
-        world,
-        projectile
+    const float aimDistance = 500.0f;
+
+    Vector3 aimPoint = Vector3Add(
+        aimRay.position,
+        Vector3Scale(aimRay.direction, aimDistance)
     );
 
+    Vector3 muzzle = Vector3Add(
+        world->player.position,
+        Vector3Scale(world->player.forward, 8.0f)
+    );
+
+    Vector3 shotDirection = Vector3Normalize(
+        Vector3Subtract(aimPoint, muzzle)
+    );
+
+    Projectile projectile = CreateProjectile(
+        muzzle,
+        shotDirection,
+        world->player.damage,
+        1500.0f,
+        0
+    );
+
+    WorldAddProjectile(world, projectile);
+
     world->player.fireTimer = world->player.fireCooldown;
+
+    // Projectile projectile =
+    //     CreateProjectile(
+    //         world->player.position,
+    //         world->player.forward,
+    //         world->player.damage,
+    //         1500.0f,
+    //         0
+    //     );
+
+    // WorldAddProjectile(
+    //     world,
+    //     projectile
+    // );
+
+    // world->player.fireTimer = world->player.fireCooldown;
 }
 
 static void HandleEnemyShooting(
@@ -340,7 +373,7 @@ static void HandleEnemyShooting(
             CreateProjectile(
                 enemy->position,
                 enemy->forward,
-                10.0f,
+                enemy->strength,
                 1000.0f,
                 1
             );
@@ -523,6 +556,8 @@ static void UpdateWorldProjectiles(
         if (!projectile->active)
             continue;
 
+        
+
         UpdateProjectile(
             projectile,
             deltaTime
@@ -568,6 +603,7 @@ void UpdateWorld(
     World *world,
     CameraController *controller,
     Camera *camera,
+    Crosshair *crosshair,
     EnemyAssets *enemyAssets
 )
 {
@@ -584,9 +620,13 @@ void UpdateWorld(
     if (deltaTime > 0.05f)
         deltaTime = 0.05f;
 
-    UpdateCameraController(
-        controller
-    );
+    CrosshairUpdateInput(crosshair);
+
+    CrosshairSteerCamera(crosshair, controller, deltaTime);
+
+    // UpdateCameraController(
+    //     controller
+    // );
 
     UpdateWorldPlayer(
         world,
@@ -603,8 +643,12 @@ void UpdateWorld(
         deltaTime
     );
 
+    CrosshairProject(crosshair, camera);
+
     HandlePlayerShooting(
-        world
+        world,
+        crosshair,
+        camera
     );
 
 

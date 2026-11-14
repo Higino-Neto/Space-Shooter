@@ -35,7 +35,6 @@ void LevelUpShutdown(void)
 void OpenLevelUpMenu(LevelUpMenu *menu)
 {
     GetRandomUpgrades(menu->choices);
-    SetMousePosition(40, 40);
     menu->active = true;
     menu->selected = -1;
 }

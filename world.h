@@ -8,6 +8,7 @@
 #include "enemy.h"
 #include "wave.h"
 #include "camera.h"
+#include "ui/crosshair.h"
 
 #define MAX_PLANETS 10
 #define MAX_ENEMIES 100
@@ -48,7 +49,9 @@ static void UpdateWorldPlayer(
     float deltaTime
 );
 static void HandlePlayerShooting(
-    World *world
+    World *world,
+    const Crosshair *crosshair,
+    const Camera *camera
 );
 
 static void HandleEnemyShooting(
@@ -106,6 +109,7 @@ void UpdateWorld(
     World *world,
     CameraController *controller,
     Camera *camera,
+    Crosshair *crosshair,
     EnemyAssets *enemyAssets
 );
 

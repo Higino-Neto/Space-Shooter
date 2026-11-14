@@ -46,12 +46,18 @@ void UIInit(void)
         "assets/ui/Internal/planetFullHealthBar.png");
 
     xpBarTexture = LoadTexture(
-        "assets/ui/Internal/levelEmptyBar.png");
+        "assets/ui/Internal/levelEmptyBarV2.png");
 
     maxXpBarTexture = LoadTexture(
-        "assets/ui/Internal/levelFullBar.png");
+        "assets/ui/Internal/levelFullBarV2.png");
 
     uiInitialized = true;
+}
+
+static float UIGetHeight(Texture2D texture, float width)
+{
+    float ratio = (float)texture.width / (float)texture.height;
+    return width / ratio;
 }
 
 static void UIDrawBar(
@@ -116,38 +122,42 @@ void UIDrawHUD(
     if (!uiInitialized)
         return;
 
- 
-      UIDrawBar(
-         planetBarTexture,
-         maxPlanetBarTexture,
-         30, 30,
-         620, 80,
-         planetHealth,
-         planetMaxHealth
-    );
+    int planetWidth = 620;
+    int healthWidth = 480;
+    int xpWidth = 360;
 
-       UIDrawBar(
+    UIDrawBar(
+        planetBarTexture,
+        maxPlanetBarTexture,
+        30, 30,
+        planetWidth,
+        UIGetHeight(planetBarTexture, planetWidth),
+        planetHealth,
+        planetMaxHealth);
+
+    UIDrawBar(
         healthBarTexture,
         maxHealthBarTexture,
         30, 130,
-        480, 70,
+        healthWidth,
+        UIGetHeight(healthBarTexture, healthWidth),
         playerHealth,
         playerMaxHealth);
-
-
-    DrawText(
-        TextFormat("Level %d", level),
-        60, 230,
-        20,
-        WHITE);
 
     UIDrawBar(
         xpBarTexture,
         maxXpBarTexture,
         30, 250,
-        320, 58,
+        xpWidth,
+        UIGetHeight(xpBarTexture, xpWidth),
         currentXP,
         requiredXP);
+
+    DrawText(
+        TextFormat("Level %d", level),
+        72, 328,
+        16,
+        WHITE);
 }
 
 void UIShutdown(void)
