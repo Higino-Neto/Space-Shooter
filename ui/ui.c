@@ -13,6 +13,10 @@ static Texture2D maxXpBarTexture;
 
 static bool uiInitialized = false;
 
+static const Color UI_BLUE = { 54, 197, 232, 255 };
+static const Color UI_GRAY = { 17, 29, 43, 255 };
+static const Color UI_RED = { 230, 41, 55, 255 };
+
 void UIInit(void)
 {
     // healthBarTexture = LoadTexture(
@@ -158,6 +162,88 @@ void UIDrawHUD(
         72, 328,
         16,
         WHITE);
+}
+
+void UIDrawWaveBanner(
+    int waveNumber,
+    float timer)
+{
+    if (waveNumber <= 0 || timer <= 0.0f)
+        return;
+
+    float fade = timer < 1.0f ? timer : 1.0f;
+
+    unsigned char textAlpha =
+        (unsigned char)(255.0f * fade);
+
+    unsigned char panelAlpha =
+        (unsigned char)(205.0f * fade);
+
+    bool bossWave = waveNumber % 5 == 0;
+
+    Color accent = bossWave ? UI_RED : UI_BLUE;
+    const char *subtitle = bossWave
+        ? "DREADNOUGHT DETECTED"
+        : "HOSTILES INBOUND";
+
+    char title[32];
+    snprintf(title, sizeof(title), "WAVE %d", waveNumber);
+
+    float width = 420.0f;
+    float height = 92.0f;
+    float x = (GetScreenWidth() - width) * 0.5f;
+    float y = 90.0f;
+
+    Rectangle panel = { x, y, width, height };
+
+    DrawRectangleRounded(
+        panel,
+        0.18f,
+        8,
+        (Color){
+            UI_GRAY.r,
+            UI_GRAY.g,
+            UI_GRAY.b,
+            panelAlpha
+        });
+
+    DrawRectangleLinesEx(
+        panel,
+        1.0f,
+        (Color){
+            accent.r,
+            accent.g,
+            accent.b,
+            (unsigned char)(110.0f * fade)
+        });
+
+    int titleWidth = MeasureText(title, 38);
+
+    DrawText(
+        title,
+        (int)(x + (width - titleWidth) * 0.5f),
+        (int)y + 15,
+        38,
+        (Color){
+            UI_BLUE.r,
+            UI_BLUE.g,
+            UI_BLUE.b,
+            textAlpha
+        });
+
+    int subtitleWidth = MeasureText(subtitle, 12);
+
+    DrawText(
+        subtitle,
+        (int)(x + (width - subtitleWidth) * 0.5f),
+        (int)y + 64,
+        12,
+        (Color){
+            accent.r,
+            accent.g,
+            accent.b,
+            (unsigned char)(220.0f * fade)
+        });
 }
 
 void UIShutdown(void)

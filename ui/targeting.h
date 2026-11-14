@@ -16,6 +16,8 @@ typedef struct {
     float distance;
     int health;
     int maxHealth;
+    int shield;
+    int maxShield;
     float damage;
     EnemyState state;
     float presence;

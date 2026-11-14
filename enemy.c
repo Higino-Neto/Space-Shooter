@@ -22,6 +22,14 @@
 #define ENEMY_MIN_DT                    0.0001f
 #define ENEMY_MAX_DT                    0.05f
 
+#define ENEMY_WAVE_HEALTH_GROWTH        0.18f
+#define ENEMY_WAVE_DAMAGE_GROWTH        0.09f
+#define ENEMY_WAVE_SPEED_GROWTH         0.025f
+#define ENEMY_WAVE_SPEED_CAP            1.45f
+#define ENEMY_WAVE_XP_GROWTH            0.10f
+#define ENEMY_WAVE_SHIELD_FACTOR        0.80f
+#define ENEMY_WAVE_HEAL_FACTOR          0.75f
+
 
 
 static float ClampFloat(float value, float min, float max)
@@ -924,9 +932,254 @@ static void ResolvePlanetCollision(Enemy *enemy, const Planet *planet) {
 
 
 
-Enemy CreateEnemy(Vector3 position, const Planet *planet) {
+typedef struct {
+    float maxSpeed;
+    float maxAcceleration;
+    float maxTurnRate;
+
+    float strength;
+    float collisionRadius;
+
+    float shootCooldown;
+    int projectileCount;
+    float projectileSpeed;
+    float burstSpread;
+
+    int maxHealth;
+    int maxShield;
+    float shieldRechargeDelay;
+    float shieldRechargeRate;
+
+    int xpReward;
+
+    float detectionRadius;
+    float attackDistance;
+    float retreatHealth;
+
+    bool splitOnDeath;
+    int splitCount;
+
+    float cloakInterval;
+    float cloakDuration;
+
+    float healCooldown;
+    float healRadius;
+    int healAmount;
+
+    float contactDamage;
+    float contactCooldown;
+
+    float spawnDistance;
+    float modelScale;
+    Color tint;
+} EnemyArchetype;
+
+static const EnemyArchetype enemyArchetypes[ENEMY_TYPE_COUNT] = {
+    [ENEMY_INTERCEPTOR] = {
+        .maxSpeed = 290.0f,
+        .maxAcceleration = 170.0f,
+        .maxTurnRate = 230.0f,
+        .strength = 6.0f,
+        .collisionRadius = 42.0f,
+        .shootCooldown = 0.22f,
+        .projectileCount = 1,
+        .projectileSpeed = 1200.0f,
+        .maxHealth = 18,
+        .xpReward = 20,
+        .detectionRadius = 1800.0f,
+        .attackDistance = 650.0f,
+        .retreatHealth = 0.0f,
+        .spawnDistance = 2600.0f,
+        .modelScale = 0.032f,
+        .tint = { 255, 255, 255, 255 }
+    },
+    [ENEMY_SHIELD] = {
+        .maxSpeed = 185.0f,
+        .maxAcceleration = 90.0f,
+        .maxTurnRate = 110.0f,
+        .strength = 9.0f,
+        .collisionRadius = 58.0f,
+        .shootCooldown = 0.55f,
+        .projectileCount = 1,
+        .projectileSpeed = 950.0f,
+        .maxHealth = 45,
+        .maxShield = 40,
+        .shieldRechargeDelay = 3.5f,
+        .shieldRechargeRate = 10.0f,
+        .xpReward = 45,
+        .detectionRadius = 1600.0f,
+        .attackDistance = 1100.0f,
+        .retreatHealth = 0.25f,
+        .spawnDistance = 3000.0f,
+        .modelScale = 0.038f,
+        .tint = { 170, 220, 255, 255 }
+    },
+    [ENEMY_BOMBER] = {
+        .maxSpeed = 145.0f,
+        .maxAcceleration = 65.0f,
+        .maxTurnRate = 75.0f,
+        .strength = 16.0f,
+        .collisionRadius = 95.0f,
+        .shootCooldown = 1.4f,
+        .projectileCount = 3,
+        .projectileSpeed = 850.0f,
+        .burstSpread = 0.14f,
+        .maxHealth = 100,
+        .xpReward = 80,
+        .detectionRadius = 1700.0f,
+        .attackDistance = 1400.0f,
+        .retreatHealth = 0.15f,
+        .spawnDistance = 3200.0f,
+        .modelScale = 0.044f,
+        .tint = { 255, 190, 190, 255 }
+    },
+    [ENEMY_RAMMER] = {
+        .maxSpeed = 330.0f,
+        .maxAcceleration = 220.0f,
+        .maxTurnRate = 260.0f,
+        .strength = 0.0f,
+        .collisionRadius = 48.0f,
+        .shootCooldown = 0.0f,
+        .projectileCount = 0,
+        .maxHealth = 35,
+        .xpReward = 30,
+        .detectionRadius = 2200.0f,
+        .attackDistance = 0.0f,
+        .retreatHealth = 0.0f,
+        .contactDamage = 18.0f,
+        .contactCooldown = 0.90f,
+        .spawnDistance = 2800.0f,
+        .modelScale = 0.033f,
+        .tint = { 235, 140, 140, 255 }
+    },
+    [ENEMY_FIGHTER] = {
+        .maxSpeed = 208.0f,
+        .maxAcceleration = 100.0f,
+        .maxTurnRate = 140.0f,
+        .strength = 10.0f,
+        .collisionRadius = 50.0f,
+        .shootCooldown = 0.30f,
+        .projectileCount = 1,
+        .projectileSpeed = 1000.0f,
+        .maxHealth = 30,
+        .xpReward = 25,
+        .detectionRadius = 1500.0f,
+        .attackDistance = 1200.0f,
+        .retreatHealth = 0.0f,
+        .spawnDistance = 3000.0f,
+        .modelScale = 0.040f,
+        .tint = { 255, 255, 255, 255 }
+    },
+    [ENEMY_SUPPORT] = {
+        .maxSpeed = 165.0f,
+        .maxAcceleration = 85.0f,
+        .maxTurnRate = 110.0f,
+        .strength = 4.0f,
+        .collisionRadius = 48.0f,
+        .shootCooldown = 0.90f,
+        .projectileCount = 1,
+        .projectileSpeed = 800.0f,
+        .maxHealth = 55,
+        .xpReward = 60,
+        .detectionRadius = 1600.0f,
+        .attackDistance = 1150.0f,
+        .retreatHealth = 0.30f,
+        .healCooldown = 4.0f,
+        .healRadius = 750.0f,
+        .healAmount = 12,
+        .spawnDistance = 3400.0f,
+        .modelScale = 0.036f,
+        .tint = { 160, 230, 255, 255 }
+    },
+    [ENEMY_SPLITTER] = {
+        .maxSpeed = 195.0f,
+        .maxAcceleration = 95.0f,
+        .maxTurnRate = 140.0f,
+        .strength = 8.0f,
+        .collisionRadius = 52.0f,
+        .shootCooldown = 0.55f,
+        .projectileCount = 1,
+        .projectileSpeed = 950.0f,
+        .maxHealth = 60,
+        .xpReward = 55,
+        .detectionRadius = 1600.0f,
+        .attackDistance = 1100.0f,
+        .retreatHealth = 0.20f,
+        .splitOnDeath = true,
+        .splitCount = 2,
+        .spawnDistance = 3100.0f,
+        .modelScale = 0.038f,
+        .tint = { 190, 225, 255, 255 }
+    },
+    [ENEMY_PHANTOM] = {
+        .maxSpeed = 240.0f,
+        .maxAcceleration = 140.0f,
+        .maxTurnRate = 190.0f,
+        .strength = 12.0f,
+        .collisionRadius = 46.0f,
+        .shootCooldown = 0.70f,
+        .projectileCount = 1,
+        .projectileSpeed = 1300.0f,
+        .maxHealth = 40,
+        .xpReward = 65,
+        .detectionRadius = 1700.0f,
+        .attackDistance = 900.0f,
+        .retreatHealth = 0.0f,
+        .cloakInterval = 5.0f,
+        .cloakDuration = 2.5f,
+        .spawnDistance = 3200.0f,
+        .modelScale = 0.034f,
+        .tint = { 200, 215, 235, 255 }
+    },
+    [ENEMY_SNIPER] = {
+        .maxSpeed = 155.0f,
+        .maxAcceleration = 75.0f,
+        .maxTurnRate = 95.0f,
+        .strength = 22.0f,
+        .collisionRadius = 50.0f,
+        .shootCooldown = 2.40f,
+        .projectileCount = 1,
+        .projectileSpeed = 1700.0f,
+        .maxHealth = 45,
+        .xpReward = 70,
+        .detectionRadius = 2600.0f,
+        .attackDistance = 2200.0f,
+        .retreatHealth = 0.20f,
+        .spawnDistance = 3600.0f,
+        .modelScale = 0.036f,
+        .tint = { 225, 225, 225, 255 }
+    },
+    [ENEMY_DREADNOUGHT] = {
+        .maxSpeed = 115.0f,
+        .maxAcceleration = 50.0f,
+        .maxTurnRate = 55.0f,
+        .strength = 20.0f,
+        .collisionRadius = 110.0f,
+        .shootCooldown = 1.50f,
+        .projectileCount = 5,
+        .projectileSpeed = 900.0f,
+        .burstSpread = 0.11f,
+        .maxHealth = 320,
+        .xpReward = 300,
+        .detectionRadius = 2200.0f,
+        .attackDistance = 1600.0f,
+        .retreatHealth = 0.0f,
+        .spawnDistance = 3800.0f,
+        .modelScale = 0.055f,
+        .tint = { 255, 160, 160, 255 }
+    }
+};
+
+Enemy CreateEnemyType(EnemyType type, Vector3 position, const Planet *planet) {
     Enemy enemy = { 0 };
 
+    if (type < 0 || type >= ENEMY_TYPE_COUNT) {
+        type = ENEMY_FIGHTER;
+    }
+
+    const EnemyArchetype *archetype = &enemyArchetypes[type];
+
+    enemy.type = type;
     enemy.position = position;
 
     if (planet != NULL) {
@@ -948,24 +1201,57 @@ Enemy CreateEnemy(Vector3 position, const Planet *planet) {
     enemy.velocity = Vector3Zero();
     enemy.acceleration = Vector3Zero();
 
-    enemy.maxSpeed = 208.0f;
-    enemy.maxAcceleration = 100.0f;
-    enemy.maxTurnRate = 140.0f;
+    enemy.maxSpeed = archetype->maxSpeed;
+    enemy.maxAcceleration = archetype->maxAcceleration;
+    enemy.maxTurnRate = archetype->maxTurnRate;
 
-    enemy.strength = 10.0f;
-    enemy.collisionRadius = 45.5f;
-    enemy.shootCooldown = 0.3f;
+    enemy.strength = archetype->strength;
+    enemy.collisionRadius = archetype->collisionRadius;
+    enemy.shootCooldown = archetype->shootCooldown;
     enemy.shootTimer = 0.0f;
+    enemy.projectileCount = archetype->projectileCount;
+    enemy.projectileSpeed = archetype->projectileSpeed;
+    enemy.burstSpread = archetype->burstSpread;
 
-    enemy.maxHealth = 30;
+    enemy.maxHealth = archetype->maxHealth;
     enemy.health = enemy.maxHealth;
 
-    enemy.xpReward = 25;
+    enemy.maxShield = archetype->maxShield;
+    enemy.shield = enemy.maxShield;
+    enemy.shieldRechargeDelay = archetype->shieldRechargeDelay;
+    enemy.shieldRechargeTimer = 0.0f;
+    enemy.shieldRechargeRate = archetype->shieldRechargeRate;
+    enemy.shieldRechargeAccumulator = 0.0f;
+
+    enemy.xpReward = archetype->xpReward;
 
     enemy.state = ENEMY_PATROL;
-    enemy.detectionRadius = 1500.0f;
-    enemy.attackDistance = 1200.0f;
-    enemy.retreatHealth = 0.25f;
+    enemy.detectionRadius = archetype->detectionRadius;
+    enemy.attackDistance = archetype->attackDistance;
+    enemy.retreatHealth = archetype->retreatHealth;
+
+    enemy.splitOnDeath = archetype->splitOnDeath;
+    enemy.splitCount = archetype->splitCount;
+
+    enemy.cloakInterval = archetype->cloakInterval;
+    enemy.cloakDuration = archetype->cloakDuration;
+    enemy.cloakTimer = archetype->cloakInterval;
+    enemy.cloaked = false;
+
+    enemy.healCooldown = archetype->healCooldown;
+    enemy.healTimer = archetype->healCooldown;
+    enemy.healRadius = archetype->healRadius;
+    enemy.healAmount = archetype->healAmount;
+    enemy.wantsToHeal = false;
+    enemy.healPulse = 0.0f;
+
+    enemy.contactDamage = archetype->contactDamage;
+    enemy.contactCooldown = archetype->contactCooldown;
+    enemy.contactTimer = 0.0f;
+
+    enemy.spawnDistance = archetype->spawnDistance;
+    enemy.modelScale = archetype->modelScale;
+    enemy.tint = archetype->tint;
 
     enemy.wantsToShoot = false;
     enemy.active = true;
@@ -974,10 +1260,69 @@ Enemy CreateEnemy(Vector3 position, const Planet *planet) {
     return enemy;
 }
 
+void ScaleEnemyForWave(Enemy *enemy, int waveNumber) {
+    if (enemy == NULL || waveNumber < 1) {
+        return;
+    }
+
+    float wave = (float)(waveNumber - 1);
+
+    float healthScale = 1.0f + ENEMY_WAVE_HEALTH_GROWTH * wave;
+    float damageScale = 1.0f + ENEMY_WAVE_DAMAGE_GROWTH * wave;
+    float speedScale = 1.0f + ENEMY_WAVE_SPEED_GROWTH * wave;
+    float xpScale = 1.0f + ENEMY_WAVE_XP_GROWTH * wave;
+
+    if (speedScale > ENEMY_WAVE_SPEED_CAP) {
+        speedScale = ENEMY_WAVE_SPEED_CAP;
+    }
+
+    enemy->maxHealth = (int)ceilf(enemy->maxHealth * healthScale);
+    enemy->health = enemy->maxHealth;
+
+    enemy->strength *= damageScale;
+
+    enemy->maxSpeed *= speedScale;
+    enemy->maxAcceleration *= speedScale;
+    enemy->maxTurnRate *= speedScale;
+
+    if (enemy->maxTurnRate > 420.0f) {
+        enemy->maxTurnRate = 420.0f;
+    }
+
+    enemy->xpReward = (int)(enemy->xpReward * xpScale);
+
+    enemy->contactDamage *= damageScale;
+
+    if (enemy->maxShield > 0) {
+        enemy->maxShield = (int)ceilf(
+            enemy->maxShield *
+            healthScale *
+            ENEMY_WAVE_SHIELD_FACTOR
+        );
+
+        enemy->shield = enemy->maxShield;
+    }
+
+    if (enemy->healAmount > 0) {
+        enemy->healAmount = (int)ceilf(
+            enemy->healAmount *
+            healthScale *
+            ENEMY_WAVE_HEAL_FACTOR
+        );
+    }
+}
+
 static bool CanEnemyShootPlanet(
     const Enemy *enemy
 )
 {
+    if (enemy->cloaked)
+        return false;
+
+    if (enemy->shootCooldown <= 0.0f ||
+        enemy->projectileCount <= 0)
+        return false;
+
     if (enemy->state != ENEMY_ATTACK_PLANET)
         return false;
 
@@ -1022,6 +1367,13 @@ static bool CanEnemyShoot(
     const Player *player
 )
 {
+    if (enemy->cloaked)
+        return false;
+
+    if (enemy->shootCooldown <= 0.0f ||
+        enemy->projectileCount <= 0)
+        return false;
+
     if (enemy->state != ENEMY_COMBAT)
         return false;
 
@@ -1090,6 +1442,77 @@ void UpdateEnemy(
 
     if (enemy->shootTimer < 0.0f)
         enemy->shootTimer = 0.0f;
+
+    if (enemy->contactTimer > 0.0f)
+    {
+        enemy->contactTimer -= deltaTime;
+
+        if (enemy->contactTimer < 0.0f)
+            enemy->contactTimer = 0.0f;
+    }
+
+    if (enemy->cloakInterval > 0.0f &&
+        enemy->cloakDuration > 0.0f)
+    {
+        enemy->cloakTimer -= deltaTime;
+
+        if (enemy->cloakTimer <= 0.0f)
+        {
+            enemy->cloaked = !enemy->cloaked;
+
+            enemy->cloakTimer =
+                enemy->cloaked
+                    ? enemy->cloakDuration
+                    : enemy->cloakInterval;
+        }
+    }
+
+    enemy->wantsToHeal = false;
+
+    if (enemy->healCooldown > 0.0f)
+    {
+        enemy->healTimer -= deltaTime;
+
+        if (enemy->healTimer <= 0.0f)
+        {
+            enemy->healTimer = enemy->healCooldown;
+            enemy->wantsToHeal = true;
+            enemy->healPulse = 1.0f;
+        }
+    }
+
+    if (enemy->healPulse > 0.0f)
+    {
+        enemy->healPulse -= deltaTime * 2.5f;
+
+        if (enemy->healPulse < 0.0f)
+            enemy->healPulse = 0.0f;
+    }
+
+    if (enemy->maxShield > 0)
+    {
+        if (enemy->shieldRechargeTimer > 0.0f)
+        {
+            enemy->shieldRechargeTimer -= deltaTime;
+        }
+        else if (enemy->shield < enemy->maxShield)
+        {
+            enemy->shieldRechargeAccumulator +=
+                enemy->shieldRechargeRate * deltaTime;
+
+            if (enemy->shieldRechargeAccumulator >= 1.0f)
+            {
+                int restored =
+                    (int)enemy->shieldRechargeAccumulator;
+
+                enemy->shieldRechargeAccumulator -= restored;
+                enemy->shield += restored;
+
+                if (enemy->shield > enemy->maxShield)
+                    enemy->shield = enemy->maxShield;
+            }
+        }
+    }
 
     enemy->wantsToShoot = false;
 
@@ -1270,9 +1693,31 @@ void DamageEnemy(
     if (damage <= 0.0f)
         return;
 
+    enemy->cloaked = false;
+    enemy->cloakTimer = enemy->cloakInterval;
 
-    enemy->health -=
-        (int)ceilf(damage);
+    int amount = (int)ceilf(damage);
+
+    if (enemy->maxShield > 0)
+    {
+        enemy->shieldRechargeTimer =
+            enemy->shieldRechargeDelay;
+
+        enemy->shieldRechargeAccumulator = 0.0f;
+    }
+
+    if (enemy->shield > 0)
+    {
+        int absorbed = enemy->shield < amount
+            ? enemy->shield
+            : amount;
+
+        enemy->shield -= absorbed;
+        amount -= absorbed;
+    }
+
+    if (amount > 0)
+        enemy->health -= amount;
 
 
     if (enemy->health <= 0)
@@ -1375,6 +1820,11 @@ void DrawEnemy(
         forward = (Vector3) { 0.0f, 0.0f, 1.0f };
 
     if (enemy->visualModel != NULL) {
+        Color tint = enemy->tint;
+
+        if (enemy->cloaked)
+            tint.a = 45;
+
         Vector3 baseForward = { -1.0f, 0.0f, 0.0f };
 
         float dot = Vector3DotProduct(baseForward, forward);
@@ -1418,7 +1868,7 @@ void DrawEnemy(
                 enemy->modelScale,
                 enemy->modelScale
             },
-            WHITE
+            tint
         );
     }
     else {
@@ -1428,96 +1878,110 @@ void DrawEnemy(
             RED
         );
     }
+
+    if (enemy->maxShield > 0 &&
+        enemy->shield > 0)
+    {
+        float ratio = (float)enemy->shield /
+                      (float)enemy->maxShield;
+
+        Color shieldColor = {
+            54,
+            197,
+            232,
+            (unsigned char)(60.0f + 110.0f * ratio)
+        };
+
+        DrawSphereWires(
+            enemy->position,
+            enemy->collisionRadius * 2.4f,
+            8,
+            16,
+            shieldColor
+        );
+    }
+
+    if (enemy->healPulse > 0.0f &&
+        enemy->healRadius > 0.0f)
+    {
+        float radius =
+            enemy->healRadius *
+            (0.35f + 0.65f * (1.0f - enemy->healPulse));
+
+        Color pulseColor = {
+            54,
+            197,
+            232,
+            (unsigned char)(120.0f * enemy->healPulse)
+        };
+
+        DrawSphereWires(
+            enemy->position,
+            radius,
+            8,
+            24,
+            pulseColor
+        );
+    }
 }
 
+static const char *enemyShipPaths[ENEMY_TYPE_COUNT] = {
+    [ENEMY_INTERCEPTOR] = "assets/enemy/smallShip/enemyShip1.glb",
+    [ENEMY_SHIELD] = "assets/enemy/mediumShip/enemyShip2.glb",
+    [ENEMY_BOMBER] = "assets/enemy/mediumShip/enemyShip10.glb",
+    [ENEMY_RAMMER] = "assets/enemy/mediumShip/enemyShip4.glb",
+    [ENEMY_FIGHTER] = "assets/enemy/mediumShip/enemyShip5.glb",
+    [ENEMY_SUPPORT] = "assets/enemy/mediumShip/enemyShip6.glb",
+    [ENEMY_SPLITTER] = "assets/enemy/mediumShip/enemyShip7.glb",
+    [ENEMY_PHANTOM] = "assets/enemy/mediumShip/enemyShip8.glb",
+    [ENEMY_SNIPER] = "assets/enemy/mediumShip/enemyShip9.glb",
+    [ENEMY_DREADNOUGHT] = "assets/enemy/bigShip/enemyShip3.glb"
+};
+
 EnemyAssets LoadEnemyAssets(void) {
-    EnemyAssets assets = {
-        .bigShip = LoadModel("assets/enemy/smallShip/enemyShip1.glb"),
-        .mediumShip = LoadModel("assets/enemy/mediumShip/enemyShip2.glb"),
-        .smallShip = LoadModel("assets/enemy/bigShip/enemyShip3.glb")
-    };
+    EnemyAssets assets = { 0 };
 
-    // TraceLog(
-    //     LOG_INFO,
-    //     "BigShip: %d meshes",
-    //     assets.bigShip.meshCount
-    // );
-
-    // TraceLog(
-    //     LOG_INFO,
-    //     "MediumShip: %d meshes",
-    //     assets.mediumShip.meshCount
-    // );
-
-    // TraceLog(
-    //     LOG_INFO,
-    //     "SmallShip: %d meshes",
-    //     assets.smallShip.meshCount
-    // );
-
-    // Texture2D bigShipTexture =
-    //     LoadTexture("assets/enemy/BigShip/spaceCraft3.png");
-
-    // Texture2D mediumShipTexture =
-    //     LoadTexture("assets/enemy/mediumShip/spaceCraft2.png");
-
-    // Texture2D smallShipTexture =
-    //     LoadTexture("assets/enemy/smallShip/spaceCraft1.png");
-
-    // for (int i = 0; i < assets.bigShip.materialCount; i++) {
-    //     SetMaterialTexture(
-    //         &assets.bigShip.materials[i],
-    //         MATERIAL_MAP_DIFFUSE,
-    //         bigShipTexture
-    //     );
-    // }
-
-
-    Texture2D texture =
+    assets.texture =
         LoadTexture("assets/enemy/smallShip/enemyShip1.png");
 
-    for (int i = 0; i < assets.smallShip.materialCount; i++)
+    for (int i = 0; i < ENEMY_TYPE_COUNT; i++)
     {
-        assets.smallShip.materials[i]
-            .maps[MATERIAL_MAP_DIFFUSE]
-            .texture = texture;
+        assets.ships[i] = LoadModel(enemyShipPaths[i]);
+
+        for (int m = 0;
+             m < assets.ships[i].materialCount;
+             m++)
+        {
+            assets.ships[i]
+                .materials[m]
+                .maps[MATERIAL_MAP_DIFFUSE]
+                .texture = assets.texture;
+        }
     }
-
-    for (int i = 0; i < assets.mediumShip.materialCount; i++)
-    {
-        assets.mediumShip.materials[i]
-            .maps[MATERIAL_MAP_DIFFUSE]
-            .texture = texture;
-    }
-
-    for (int i = 0; i < assets.bigShip.materialCount; i++)
-    {
-        assets.bigShip.materials[i]
-            .maps[MATERIAL_MAP_DIFFUSE]
-            .texture = texture;
-    }
-
-    // for (int i = 0; i < assets.mediumShip.materialCount; i++) {
-    //     SetMaterialTexture(
-    //         &assets.mediumShip.materials[i],
-    //         MATERIAL_MAP_DIFFUSE,
-    //         mediumShipTexture
-    //     );
-    // }
-
-    // for (int i = 0; i < assets.smallShip.materialCount; i++) {
-    //     SetMaterialTexture(
-    //         &assets.smallShip.materials[i],
-    //         MATERIAL_MAP_DIFFUSE,
-    //         smallShipTexture
-    //     );
-    // }
 
     return assets;
 }
 
 void UnloadEnemyAssets(EnemyAssets *assets) {
-    UnloadModel(assets->bigShip);
-    UnloadModel(assets->mediumShip);
-    UnloadModel(assets->smallShip);
+    if (assets == NULL)
+        return;
+
+    for (int i = 0; i < ENEMY_TYPE_COUNT; i++)
+    {
+        for (int m = 0;
+             m < assets->ships[i].materialCount;
+             m++)
+        {
+            assets->ships[i]
+                .materials[m]
+                .maps[MATERIAL_MAP_DIFFUSE]
+                .texture = (Texture2D){ 0 };
+        }
+
+        UnloadModel(assets->ships[i]);
+    }
+
+    UnloadTexture(assets->texture);
+
+    assets->texture = (Texture2D){ 0 };
 }

@@ -401,6 +401,14 @@ void UpdateTargeting(
         if (!enemy->active)
             continue;
 
+        if (enemy->cloaked)
+        {
+            system->presence[i] -=
+                system->presence[i] * fadeT;
+
+            continue;
+        }
+
         system->presence[i] +=
             (1.0f - system->presence[i]) * fadeT;
 
@@ -446,6 +454,8 @@ void UpdateTargeting(
             marker->distance = distance;
             marker->health = enemy->health;
             marker->maxHealth = enemy->maxHealth;
+            marker->shield = enemy->shield;
+            marker->maxShield = enemy->maxShield;
             marker->damage = enemy->strength;
             marker->state = enemy->state;
             marker->presence = system->presence[i];
@@ -675,6 +685,9 @@ bool TargetingResolveShot(
         &enemies[system->selectedIndex];
 
     if (!target->active)
+        return false;
+
+    if (target->cloaked)
         return false;
 
     if (projectileSpeed <= 0.0f)
@@ -934,15 +947,31 @@ static void TargetingDrawPanel(
         TargetingTint(TARGETING_BLUE, 245)
     );
 
-    DrawText(
-        TextFormat(
-            "DMG %.0f",
-            marker->damage),
-        (int)x + 10,
-        (int)y + 25,
-        12,
-        TargetingTint(TARGETING_BLUE, 175)
-    );
+    if (marker->maxShield > 0)
+    {
+        DrawText(
+            TextFormat(
+                "SHD %d/%d",
+                marker->shield,
+                marker->maxShield),
+            (int)x + 10,
+            (int)y + 25,
+            12,
+            TargetingTint(TARGETING_BLUE, 205)
+        );
+    }
+    else
+    {
+        DrawText(
+            TextFormat(
+                "DMG %.0f",
+                marker->damage),
+            (int)x + 10,
+            (int)y + 25,
+            12,
+            TargetingTint(TARGETING_BLUE, 175)
+        );
+    }
 
     DrawText(
         distanceText,

@@ -31,7 +31,10 @@ typedef struct {
 
     int currentWave;
     float waveCooldown;
+    float waveBannerTimer;
     bool waitingForNextWave;
+
+    EnemyAssets *enemyAssets;
 
     GameCamera gameCamera;
     TargetingSystem targeting;
@@ -58,6 +61,19 @@ static void HandlePlayerShooting(
 
 static void HandleEnemyShooting(
     World *world
+);
+
+static void HandleEnemySupport(
+    World *world
+);
+
+static void HandleEnemyContactDamage(
+    World *world
+);
+
+static void SpawnSplitChildren(
+    World *world,
+    const Enemy *parent
 );
 
 static bool ProjectileHitsPlayer(

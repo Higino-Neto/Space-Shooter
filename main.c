@@ -185,6 +185,10 @@ int main(void)
             world.player.currentXP,
             world.player.requiredXP);
 
+        UIDrawWaveBanner(
+            world.currentWave,
+            world.waveBannerTimer);
+
         DrawTargeting(&world.targeting);
 
         CrosshairDraw(&crosshair);
@@ -199,6 +203,7 @@ int main(void)
 
     UnloadSkybox(&skybox);
     UnloadPlayer(&world.player);
+    UnloadEnemyAssets(&enemyAssets);
     UnloadShader(planetShader);
 
     UIShutdown();

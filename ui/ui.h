@@ -17,6 +17,12 @@ void UIDrawHUD(
     float currentXP,
     float requiredXP
 );
+
+void UIDrawWaveBanner(
+    int waveNumber,
+    float timer
+);
+
 void UIShutdown(void);
 
 #endif

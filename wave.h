@@ -3,8 +3,8 @@
 #include "enemy.h"
 #include "raylib.h"
 
-#define MAX_ENEMY_QUANTITY 20
-#define MAX_ENEMY_GROUP_QUANTITY 5
+#define MAX_WAVE_ENEMIES 48
+#define MAX_ENEMY_GROUP_QUANTITY 12
 
 // typedef struct Portal {
 //     Model model;
@@ -34,7 +34,13 @@ typedef struct EnemyWave {
 
 Vector3 GetRandomSpawnPosition(float distanceFromPlanet);
 
-EnemyWave CreateWave(Planet planet, const EnemyAssets *assets);
+EnemyWave CreateWave(
+    Planet planet,
+    const EnemyAssets *assets,
+    int waveNumber
+);
+
+float GetWaveCooldown(int waveNumber);
 
 // Portal CreatePortal();
 

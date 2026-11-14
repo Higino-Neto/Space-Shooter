@@ -5,10 +5,23 @@
 #include "player.h"
 #include "planet.h"
 
+typedef enum {
+    ENEMY_INTERCEPTOR,
+    ENEMY_SHIELD,
+    ENEMY_BOMBER,
+    ENEMY_RAMMER,
+    ENEMY_FIGHTER,
+    ENEMY_SUPPORT,
+    ENEMY_SPLITTER,
+    ENEMY_PHANTOM,
+    ENEMY_SNIPER,
+    ENEMY_DREADNOUGHT,
+    ENEMY_TYPE_COUNT
+} EnemyType;
+
 typedef struct EnemyAssets {
-    Model smallShip;
-    Model mediumShip;
-    Model bigShip;
+    Model ships[ENEMY_TYPE_COUNT];
+    Texture2D texture;
 } EnemyAssets;
 
 EnemyAssets LoadEnemyAssets(void);
@@ -25,6 +38,9 @@ typedef struct Enemy {
 
     const Model *visualModel;
     float modelScale;
+    Color tint;
+
+    EnemyType type;
 
     Vector3 position;
     Vector3 forward;
@@ -42,8 +58,19 @@ typedef struct Enemy {
     float shootCooldown;
     float shootTimer;
 
+    int projectileCount;
+    float projectileSpeed;
+    float burstSpread;
+
     int health;
     int maxHealth;
+
+    int shield;
+    int maxShield;
+    float shieldRechargeDelay;
+    float shieldRechargeTimer;
+    float shieldRechargeRate;
+    float shieldRechargeAccumulator;
 
     int xpReward;
 
@@ -55,6 +82,27 @@ typedef struct Enemy {
     float detectionRadius;
     float attackDistance;
     float retreatHealth;
+
+    bool splitOnDeath;
+    int splitCount;
+
+    bool cloaked;
+    float cloakTimer;
+    float cloakInterval;
+    float cloakDuration;
+
+    float healCooldown;
+    float healTimer;
+    float healRadius;
+    int healAmount;
+    bool wantsToHeal;
+    float healPulse;
+
+    float contactDamage;
+    float contactCooldown;
+    float contactTimer;
+
+    float spawnDistance;
 
     bool active;
     bool alive;
@@ -87,9 +135,15 @@ static bool CanEnemyShoot(
     const Player *player
 );
 
-Enemy CreateEnemy(
+Enemy CreateEnemyType(
+    EnemyType type,
     Vector3 position,
     const Planet *planet
+);
+
+void ScaleEnemyForWave(
+    Enemy *enemy,
+    int waveNumber
 );
 
 void UpdateEnemy(

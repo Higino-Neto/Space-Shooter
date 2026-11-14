@@ -9,6 +9,9 @@
 #include "raymath.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
+
+#define WAVE_BANNER_TIME 3.2f
 
 static float DistanceSquared(Vector3 a, Vector3 b)
 {
@@ -189,14 +192,16 @@ bool WorldAddWave(World *world, EnemyWave enemyWave) {
     for(int groupIndex = 0; groupIndex < enemyWave.enemyGroupCount; groupIndex++) {
         EnemyGroup *group = &enemyWave.enemyGroup[groupIndex];
 
-        
         Enemy enemy = group->model;
         for(int enemyIndex = 0; enemyIndex < group->enemyCount; enemyIndex++) {
-            enemy.position = GetRandomSpawnPosition(3000.0f);
+            enemy.position = GetRandomSpawnPosition(enemy.spawnDistance);
 
-            WorldAddEnemy(world, enemy);
+            if (!WorldAddEnemy(world, enemy))
+                break;
         }
-   }
+    }
+
+    return true;
 }
 
 bool WorldAddPlanet(World *world, Planet planet) {
@@ -225,10 +230,23 @@ static void UpdateWorldWave(
     float deltaTime
 ) {
 
+    if (world->waveBannerTimer > 0.0f) {
+        world->waveBannerTimer -= deltaTime;
+
+        if (world->waveBannerTimer < 0.0f)
+            world->waveBannerTimer = 0.0f;
+    }
+
     if (world->currentWave == 0) {
-        EnemyWave enemyWave = CreateWave(world->planets[0], enemyAssets);
+        EnemyWave enemyWave = CreateWave(
+            world->planets[0],
+            enemyAssets,
+            1
+        );
+
         WorldAddWave(world, enemyWave);
         world->currentWave = 1;
+        world->waveBannerTimer = WAVE_BANNER_TIME;
         return;
 
     } 
@@ -238,7 +256,7 @@ static void UpdateWorldWave(
     }
     
     if (!world->waitingForNextWave) {
-        world->waveCooldown = 5.0;
+        world->waveCooldown = GetWaveCooldown(world->currentWave + 1);
         world->waitingForNextWave = true;
         return;
     }
@@ -247,9 +265,17 @@ static void UpdateWorldWave(
          
     
     if (world->waveCooldown <= 0.0f) {
-        EnemyWave enemyWave = CreateWave(world->planets[0], enemyAssets);
+        int nextWave = world->currentWave + 1;
+
+        EnemyWave enemyWave = CreateWave(
+            world->planets[0],
+            enemyAssets,
+            nextWave
+        );
+
         WorldAddWave(world, enemyWave);
-        world->currentWave++;
+        world->currentWave = nextWave;
+        world->waveBannerTimer = WAVE_BANNER_TIME;
         world->waitingForNextWave = false;
     }
 }   
@@ -381,21 +407,167 @@ static void HandleEnemyShooting(
         if (!enemy->wantsToShoot)
             continue;
 
-        Projectile projectile =
-            CreateProjectile(
-                enemy->position,
+        int count = enemy->projectileCount > 0
+            ? enemy->projectileCount
+            : 1;
+
+        float speed = enemy->projectileSpeed > 0.0f
+            ? enemy->projectileSpeed
+            : 1000.0f;
+
+        Vector3 axis = { 0.0f, 1.0f, 0.0f };
+        float vertical = Vector3DotProduct(enemy->forward, axis);
+
+        if (vertical > 0.98f || vertical < -0.98f)
+            axis = (Vector3){ 1.0f, 0.0f, 0.0f };
+
+        for (int shot = 0; shot < count; shot++)
+        {
+            float offset =
+                ((float)shot - (float)(count - 1) * 0.5f) *
+                enemy->burstSpread;
+
+            Vector3 direction = Vector3RotateByAxisAngle(
                 enemy->forward,
-                enemy->strength,
-                1000.0f,
-                1
+                axis,
+                offset
             );
 
-        WorldAddProjectile(
-            world,
-            projectile
-        );
+            Projectile projectile =
+                CreateProjectile(
+                    enemy->position,
+                    direction,
+                    enemy->strength,
+                    speed,
+                    1
+                );
+
+            WorldAddProjectile(
+                world,
+                projectile
+            );
+        }
 
         enemy->wantsToShoot = false;
+    }
+}
+
+static void HandleEnemySupport(
+    World *world
+)
+{
+    for (int i = 0; i < world->enemyCount; i++)
+    {
+        Enemy *support = &world->enemies[i];
+
+        if (!support->active || !support->wantsToHeal)
+            continue;
+
+        support->wantsToHeal = false;
+
+        for (int j = 0; j < world->enemyCount; j++)
+        {
+            if (j == i)
+                continue;
+
+            Enemy *ally = &world->enemies[j];
+
+            if (!ally->active)
+                continue;
+
+            if (ally->health >= ally->maxHealth)
+                continue;
+
+            if (Vector3Distance(
+                    support->position,
+                    ally->position) > support->healRadius)
+            {
+                continue;
+            }
+
+            ally->health += support->healAmount;
+
+            if (ally->health > ally->maxHealth)
+                ally->health = ally->maxHealth;
+        }
+    }
+}
+
+static void HandleEnemyContactDamage(
+    World *world
+)
+{
+    for (int i = 0; i < world->enemyCount; i++)
+    {
+        Enemy *enemy = &world->enemies[i];
+
+        if (!enemy->active)
+            continue;
+
+        if (enemy->contactDamage <= 0.0f)
+            continue;
+
+        if (enemy->contactTimer > 0.0f)
+            continue;
+
+        float distance = Vector3Distance(
+            enemy->position,
+            world->player.position
+        );
+
+        float reach =
+            enemy->collisionRadius +
+            world->player.collisionRadius;
+
+        if (distance > reach)
+            continue;
+
+        DamagePlayer(
+            &world->player,
+            enemy->contactDamage
+        );
+
+        enemy->contactTimer = enemy->contactCooldown;
+    }
+}
+
+static void SpawnSplitChildren(
+    World *world,
+    const Enemy *parent
+)
+{
+    if (world->enemyAssets == NULL)
+        return;
+
+    int count = parent->splitCount > 0
+        ? parent->splitCount
+        : 2;
+
+    for (int i = 0; i < count; i++)
+    {
+        float angle =
+            (float)i * (2.0f * PI / (float)count);
+
+        Vector3 offset = {
+            cosf(angle) * parent->collisionRadius * 0.9f,
+            0.0f,
+            sinf(angle) * parent->collisionRadius * 0.9f
+        };
+
+        Enemy child = CreateEnemyType(
+            ENEMY_INTERCEPTOR,
+            Vector3Add(parent->position, offset),
+            &world->planets[0]
+        );
+
+        child.visualModel =
+            &world->enemyAssets->ships[ENEMY_INTERCEPTOR];
+
+        child.forward = parent->forward;
+
+        ScaleEnemyForWave(&child, world->currentWave);
+
+        WorldAddEnemy(world, child);
     }
 }
 
@@ -542,6 +714,9 @@ static bool ProjectileHitsEnemy(
 
             if (!enemy->alive) {
                 PlayerAddXP(&world->player, enemy->xpReward);
+
+                if (enemy->splitOnDeath)
+                    SpawnSplitChildren(world, enemy);
             }
 
             projectile->active = false;
@@ -632,6 +807,8 @@ void UpdateWorld(
     if (deltaTime > 0.05f)
         deltaTime = 0.05f;
 
+    world->enemyAssets = enemyAssets;
+
     CrosshairUpdateInput(crosshair);
 
     CrosshairSteerCamera(crosshair, controller, deltaTime);
@@ -678,6 +855,14 @@ void UpdateWorld(
     UpdateWorldEnemies(
         world,
         deltaTime
+    );
+
+    HandleEnemySupport(
+        world
+    );
+
+    HandleEnemyContactDamage(
+        world
     );
 
     UpdateWorldWave(
