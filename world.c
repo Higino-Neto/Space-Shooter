@@ -394,6 +394,16 @@ static void HandleEnemyShooting(
     World *world
 )
 {
+    int activeEnemyProjectiles = 0;
+
+    for (int i = 0; i < world->projectileCount; i++)
+    {
+        Projectile *projectile = &world->projectiles[i];
+
+        if (projectile->active && projectile->ownerId == 1)
+            activeEnemyProjectiles++;
+    }
+
     for (int i = 0;
          i < world->enemyCount;
          i++)
@@ -406,6 +416,12 @@ static void HandleEnemyShooting(
 
         if (!enemy->wantsToShoot)
             continue;
+
+        if (activeEnemyProjectiles >= MAX_ENEMY_PROJECTILES)
+        {
+            enemy->wantsToShoot = false;
+            continue;
+        }
 
         int count = enemy->projectileCount > 0
             ? enemy->projectileCount
@@ -423,6 +439,9 @@ static void HandleEnemyShooting(
 
         for (int shot = 0; shot < count; shot++)
         {
+            if (activeEnemyProjectiles >= MAX_ENEMY_PROJECTILES)
+                break;
+
             float offset =
                 ((float)shot - (float)(count - 1) * 0.5f) *
                 enemy->burstSpread;
@@ -442,10 +461,12 @@ static void HandleEnemyShooting(
                     1
                 );
 
-            WorldAddProjectile(
-                world,
-                projectile
-            );
+            if (WorldAddProjectile(
+                    world,
+                    projectile))
+            {
+                activeEnemyProjectiles++;
+            }
         }
 
         enemy->wantsToShoot = false;
@@ -733,6 +754,15 @@ static void UpdateWorldProjectiles(
     float deltaTime
 )
 {
+    const float despawnDistanceSquared =
+        PROJECTILE_DESPAWN_DISTANCE *
+        PROJECTILE_DESPAWN_DISTANCE;
+
+    Vector3 planetPosition = { 0 };
+
+    if (world->planetCount > 0)
+        planetPosition = world->planets[0].position;
+
     for (int i = 0;
          i < world->projectileCount;
          i++)
@@ -752,6 +782,23 @@ static void UpdateWorldProjectiles(
 
         if (!projectile->active)
             continue;
+
+        bool farFromPlanet =
+            world->planetCount == 0 ||
+            DistanceSquared(
+                projectile->position,
+                planetPosition) > despawnDistanceSquared;
+
+        bool farFromPlayer =
+            DistanceSquared(
+                projectile->position,
+                world->player.position) > despawnDistanceSquared;
+
+        if (farFromPlanet && farFromPlayer)
+        {
+            projectile->active = false;
+            continue;
+        }
 
         if (ProjectileHitsPlanet(
                 world,
@@ -942,14 +989,6 @@ void DrawWorld(
         &world->player
     );
 
-    DrawShipTrails(
-        &world->player,
-        world->player.forward,
-        right,
-        up,
-        camera
-    );
-
     for (int i = 0;
          i < world->enemyCount;
          i++)
@@ -959,6 +998,16 @@ void DrawWorld(
         );
     }
 
+    BeginTrailBatch(camera);
+
+    DrawShipTrails(
+        &world->player,
+        world->player.forward,
+        right,
+        up,
+        camera
+    );
+
     for (int i = 0;
          i < world->projectileCount;
          i++)
@@ -966,10 +1015,15 @@ void DrawWorld(
        if (!world->projectiles[i].active)
            continue;
 
+       DrawProjectileTrail(
+            &world->projectiles[i]
+        );
+
        DrawProjectile(
-            &world->projectiles[i],
-            camera
+            &world->projectiles[i]
         );
     }
+
+    EndTrailBatch();
 
 }

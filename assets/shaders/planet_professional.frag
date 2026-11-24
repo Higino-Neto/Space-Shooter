@@ -7,9 +7,10 @@
 // Mantém as entradas e os dados de deformação do shader original. A única
 // uniform nova é cameraPosition, usada para Fresnel/atmosfera e reflexo da água.
 //
-// deformationData[i].xyz : direção normalizada do centro da cratera
-// deformationData[i].w   : DIÂMETRO angular da cratera, em radianos
-//                          (o raio continua sendo data.w * 0.5, como no original)
+// deformationData[i].xyz   : direção normalizada do centro da cratera
+// deformationData[i].w     : DIÂMETRO angular da cratera, em radianos
+//                            (o raio continua sendo data.w * 0.5, como no original)
+// deformationCutoff[i]     : cosseno do ângulo limite para descartar a cratera
 // -----------------------------------------------------------------------------
 
 in vec3 fragWorldPosition;
@@ -19,9 +20,10 @@ uniform vec3 planetPosition;
 uniform float planetRadius;
 uniform vec3 cameraPosition;
 
-#define MAX_DEFORMATIONS 1000
+#define MAX_DEFORMATIONS 64
 uniform int deformationCount;
 uniform vec4 deformationData[MAX_DEFORMATIONS];
+uniform float deformationCutoff[MAX_DEFORMATIONS];
 
 out vec4 finalColor;
 
@@ -241,13 +243,12 @@ void applyCraters(
     {
         vec4 data = deformationData[i];
 
-        float directionLength = length(data.xyz);
         float radius = data.w * 0.5;
 
-        if (directionLength < 0.0001 || radius < 0.0001)
+        if (radius < 0.0001)
             continue;
 
-        vec3 craterDirection = data.xyz / directionLength;
+        vec3 craterDirection = data.xyz;
 
         float d = clamp(
             dot(direction, craterDirection),
@@ -255,23 +256,14 @@ void applyCraters(
             1.0
         );
 
-        if (d < cos(radius * 1.4))
+        if (d < deformationCutoff[i])
             continue;
 
         float t = acos(d) / radius;
 
-        // Pequenas irregularidades naturais no contorno.
-        float broadNoise = noise3D(
-            direction * 24.0 + craterDirection * 8.0
-        );
-
-        float fineNoise = noise3D(
-            direction * 65.0 - craterDirection * 11.0
-        );
-
         float edgeNoise =
-            (broadNoise - 0.5) * 0.055 +
-            (fineNoise - 0.5) * 0.025;
+            sin(dot(direction, vec3(19.3, 7.1, 13.7)) * 41.0 + data.w * 173.0) * 0.030 +
+            sin(dot(direction, vec3(31.7, 23.9, 5.3)) * 79.0 - data.w * 97.0) * 0.014;
 
         float shapedT = t +
             edgeNoise * smoothstep(0.2, 0.85, t);
@@ -292,12 +284,13 @@ void applyCraters(
             exp(-lipX * lipX) * 0.22;
 
         // Material ejetado irregular, sem formar uma auréola.
-        float ejectaNoise = noise3D(
-            direction * 38.0 + craterDirection * 17.0
+        float ejectaNoise = sin(
+            dot(direction, vec3(11.7, 29.3, 17.9)) * 53.0 +
+            data.w * 211.0
         );
 
         float ejectaPatches =
-            smoothstep(0.48, 0.78, ejectaNoise);
+            smoothstep(0.05, 0.65, ejectaNoise);
 
         float ejectaFalloff =
             1.0 - smoothstep(1.0, 1.45, shapedT);
@@ -358,15 +351,18 @@ void applyCraters(
     vec3 ejectaColor = vec3(0.195, 0.145, 0.095);
 
     // Variação mineral e de sedimentos.
-    float floorVariation =
-        0.88 + noise3D(direction * 57.0) * 0.24;
+    if (floorAmount + wallAmount + lipAmount + ejectaAmount > 0.0001)
+    {
+        float floorVariation =
+            0.88 + sin(dot(direction, vec3(57.0, 31.0, 43.0))) * 0.12;
 
-    float wallVariation =
-        0.86 + noise3D(direction * 43.0 + vec3(4.2, 8.1, 2.3)) * 0.28;
+        float wallVariation =
+            0.86 + sin(dot(direction, vec3(43.0, 61.0, 29.0)) + 2.1) * 0.14;
 
-    floorColor *= floorVariation;
-    wallColor *= wallVariation;
-    lipColor *= wallVariation;
+        floorColor *= floorVariation;
+        wallColor *= wallVariation;
+        lipColor *= wallVariation;
+    }
 
     // Mistura progressiva com o terreno original.
     surfaceColor = mix(
@@ -429,7 +425,8 @@ void main()
     vec3 surfaceColor = getPlanetAlbedo(direction, terrain, landMask);
 
     // As crateras alteram albedo e normal de iluminação, não a posição da malha.
-    applyCraters(direction, landMask, surfaceColor, surfaceNormal);
+    if (deformationCount > 0)
+        applyCraters(direction, landMask, surfaceColor, surfaceNormal);
 
     // Granulação mineral e variação fina de cor, com atenuação automática
     // quando o detalhe fica menor que um pixel.

@@ -468,18 +468,18 @@ void DrawShipTrails(
     if (player == NULL)
         return;
 
-    DrawTrail(
+    (void)camera;
+
+    DrawTrailInBatch(
         &player->trails[0],
         &player->trailConfig,
-        up,
-        camera
+        up
     );
 
-    DrawTrail(
+    DrawTrailInBatch(
         &player->trails[1],
         &player->trailConfig,
-        up,
-        camera
+        up
     );
 }
 

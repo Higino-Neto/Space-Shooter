@@ -3,7 +3,7 @@
 
 #include "raylib.h"
 
-#define TRAIL_MAX_POINTS 160
+#define TRAIL_MAX_POINTS 64
 
 typedef struct {
     Vector3 position;
@@ -45,5 +45,21 @@ void DrawTrail(
     Vector3 up,
     Camera3D camera
 );
+
+void BeginTrailBatch(Camera3D camera);
+
+void DrawTrailInBatch(
+    const Trail *trail,
+    const TrailConfig *config,
+    Vector3 up
+);
+
+void DrawTrailGlow(
+    Vector3 position,
+    float radius,
+    Color color
+);
+
+void EndTrailBatch(void);
 
 #endif

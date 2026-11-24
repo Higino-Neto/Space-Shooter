@@ -134,6 +134,41 @@ PlanetPatch CreatePlanetPatch(
     patch.vMin = vMin;
     patch.vMax = vMax;
 
+    patch.centerDirection =
+        CubePointUV(
+            face,
+            (uMin + uMax) * 0.5f,
+            (vMin + vMax) * 0.5f);
+
+    patch.angularRadius = 0.0f;
+
+    float cornerU[2] = { uMin, uMax };
+    float cornerV[2] = { vMin, vMax };
+
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            Vector3 corner =
+                CubePointUV(
+                    face,
+                    cornerU[i],
+                    cornerV[j]);
+
+            float dot = Clamp(
+                Vector3DotProduct(
+                    patch.centerDirection,
+                    corner),
+                -1.0f,
+                1.0f);
+
+            float angle = acosf(dot);
+
+            if (angle > patch.angularRadius)
+                patch.angularRadius = angle;
+        }
+    }
+
     int vertexCount =
         resolution * resolution;
 
@@ -169,9 +204,9 @@ PlanetPatch CreatePlanetPatch(
         MemAlloc(
             vertexCount * 2 * sizeof(float));
 
-    patch.originalVertices =
+    patch.directions =
         MemAlloc(
-            vertexCount * 3 * sizeof(float));
+            vertexCount * sizeof(Vector3));
 
     for (int y = 0; y < resolution; y++)
     {
@@ -220,14 +255,8 @@ PlanetPatch CreatePlanetPatch(
             patch.mesh.vertices[index * 3 + 2] =
                 position.z;
 
-            patch.originalVertices[index * 3 + 0] =
-                position.x;
-
-            patch.originalVertices[index * 3 + 1] =
-                position.y;
-
-            patch.originalVertices[index * 3 + 2] =
-                position.z;
+            patch.directions[index] =
+                direction;
 
             patch.mesh.normals[index * 3 + 0] =
                 direction.x;
@@ -417,6 +446,13 @@ bool PlanetContainsSphere(
     if (distance < 0.00001f)
         return true;
 
+    float maxSurfaceRadius =
+        planet->radius +
+        planet->heightAmplitude;
+
+    if (distance > maxSurfaceRadius + objectRadius)
+        return false;
+
     Vector3 direction = Vector3Scale(
         offset,
         1.0f / distance);
@@ -443,9 +479,7 @@ bool PlanetContainsSphere(
             direction,
             deformation->direction);
 
-        float minDot = cosf(deformation->radius);
-
-        if (dot < minDot)
+        if (dot < deformation->cosRadius)
             continue;
 
         float angle = acosf(
@@ -466,6 +500,8 @@ bool PlanetContainsSphere(
     return distance < surfaceRadius + objectRadius;
 }
 
+
+
 void UpdatePlanet(
     Planet *planet,
     Vector3 cameraPosition)
@@ -474,11 +510,7 @@ void UpdatePlanet(
         planet->deformationCount >
         planet->appliedDeformationCount)
     {
-
         UpdatePlanetPatch(planet);
-
-        planet->appliedDeformationCount =
-            planet->deformationCount;
     }
 }
 
@@ -501,6 +533,17 @@ void DrawPlanet(
             shader,
             "deformationData");
 
+    int deformationCutoffLoc =
+        GetShaderLocation(
+            shader,
+            "deformationCutoff");
+
+    if (deformationCutoffLoc < 0)
+        deformationCutoffLoc =
+            GetShaderLocation(
+                shader,
+                "deformationCutoff[0]");
+
     SetShaderValue(
         shader,
         deformationCountLoc,
@@ -508,6 +551,7 @@ void DrawPlanet(
         SHADER_UNIFORM_INT);
 
     Vector4 deformationData[MAX_DEFORMATIONS] = {0};
+    float deformationCutoff[MAX_DEFORMATIONS] = {0};
 
     for (
         int i = 0;
@@ -523,6 +567,9 @@ void DrawPlanet(
                 deformation->direction.y,
                 deformation->direction.z,
                 deformation->radius};
+
+        deformationCutoff[i] =
+            deformation->cosCutoff;
     }
 
     if (planet->deformationCount > 0)
@@ -532,6 +579,13 @@ void DrawPlanet(
             deformationDataLoc,
             deformationData,
             SHADER_UNIFORM_VEC4,
+            planet->deformationCount);
+
+        SetShaderValueV(
+            shader,
+            deformationCutoffLoc,
+            deformationCutoff,
+            SHADER_UNIFORM_FLOAT,
             planet->deformationCount);
     }
 
@@ -549,8 +603,7 @@ void DrawPlanet(
 
 void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage)
 {
-
-    if (planet->deformationCount >= MAX_DEFORMATIONS)
+    if (planet == NULL || damage <= 0.0f)
     {
         return;
     }
@@ -561,15 +614,28 @@ void DamagePlanet(Planet *planet, Vector3 impactPoint, float damage)
         planet->health = 0;
     }
 
+    if (planet->deformationCount >= MAX_DEFORMATIONS)
+    {
+        return;
+    }
+
     Vector3 impactDirection = Vector3Normalize(
         Vector3Subtract(
             impactPoint,
             planet->position));
 
+    float radius = 0.01f * damage;
+    float cutoffAngle = radius * 1.45f;
+
+    if (cutoffAngle > 3.14159265f)
+        cutoffAngle = 3.14159265f;
+
     TerrainDeformation deformation = {
         .direction = impactDirection,
-        .radius = 0.01f * damage,
-        .strength = damage};
+        .radius = radius,
+        .strength = damage,
+        .cosRadius = cosf(radius),
+        .cosCutoff = cosf(cutoffAngle)};
 
     planet->deformations[planet->deformationCount++] = deformation;
 }
@@ -691,8 +757,13 @@ void UpdatePlanetPatch(Planet *planet)
     if (lastNew > MAX_DEFORMATIONS)
         lastNew = MAX_DEFORMATIONS;
 
+    if (lastNew > firstNew + MAX_DEFORMATIONS_PER_FRAME)
+        lastNew = firstNew + MAX_DEFORMATIONS_PER_FRAME;
+
     if (firstNew >= lastNew)
         return;
+
+    planet->appliedDeformationCount = lastNew;
 
     const float minRadius =
         planet->radius * MIN_PLANET_RADIUS_RATIO;
@@ -714,20 +785,26 @@ void UpdatePlanetPatch(Planet *planet)
             if (craterRadius <= 0.00001f)
                 continue;
 
-            // Teste barato: dispensa acosf para vértices distantes.
-            float minDot = cosf(craterRadius);
+            float faceCutoff = cosf(
+                fminf(
+                    craterRadius + patch->angularRadius,
+                    3.14159265f));
+
+            if (Vector3DotProduct(
+                    patch->centerDirection,
+                    deformation->direction) < faceCutoff)
+            {
+                continue;
+            }
+
+            float minDot = deformation->cosRadius;
 
             for (int i = 0; i < vertexCount; i++)
             {
                 int offset = i * 3;
 
-                Vector3 originalPosition = {
-                    patch->originalVertices[offset],
-                    patch->originalVertices[offset + 1],
-                    patch->originalVertices[offset + 2]};
-
                 Vector3 direction =
-                    Vector3Normalize(originalPosition);
+                    patch->directions[i];
 
                 float dot = Vector3DotProduct(
                     deformation->direction,
@@ -781,7 +858,6 @@ void UpdatePlanetPatch(Planet *planet)
             }
         }
 
-        // Não recalcula nem envia faces que não foram alteradas.
         if (!changed)
             continue;
 

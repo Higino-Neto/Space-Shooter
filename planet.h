@@ -3,13 +3,14 @@
 
 #include "raylib.h"
 
-#define MAX_DEFORMATIONS 1000
+#define MAX_DEFORMATIONS 64
+#define MAX_DEFORMATIONS_PER_FRAME 2
 #define MIN_PLANET_RADIUS_RATIO 0.1f
 
 
 typedef struct PlanetPatch {
     Mesh mesh;
-    float *originalVertices;
+    Vector3 *directions;
 
     int face;
 
@@ -18,12 +19,17 @@ typedef struct PlanetPatch {
 
     float vMin;
     float vMax;
+
+    Vector3 centerDirection;
+    float angularRadius;
 } PlanetPatch;
 
 typedef struct TerrainDeformation {
     Vector3 direction;
     float radius;
     float strength;
+    float cosRadius;
+    float cosCutoff;
 } TerrainDeformation;
 
 typedef struct Planet {

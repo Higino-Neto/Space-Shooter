@@ -13,11 +13,11 @@ Projectile CreateProjectile(Vector3 position, Vector3 direction, float damage, f
     projectile.ownerId = ownerId;
 
     projectile.active = true;
-    projectile.lifetime = 10.0f;
+    projectile.lifetime = 5.0f;
 
     projectile.trailConfig = (TrailConfig) {
-        .lifetime = 0.42f,
-        .sampleInterval = 0.008f,
+        .lifetime = 0.30f,
+        .sampleInterval = 0.012f,
 
         .width = 2.40f,
         .coreWidth = 1.10f,
@@ -63,7 +63,7 @@ void UpdateProjectile(Projectile *projectile, float deltaTime) {
 }
 
 
-void DrawProjectile(Projectile *projectile, Camera3D camera) {
+void DrawProjectileTrail(Projectile *projectile) {
     if (projectile == NULL)
         return;
 
@@ -73,14 +73,20 @@ void DrawProjectile(Projectile *projectile, Camera3D camera) {
         0.0f
     };
 
-    DrawTrail(
+    DrawTrailInBatch(
         &projectile->trail,
         &projectile->trailConfig,
-        up,
-        camera
+        up
     );
+}
 
-    if (projectile->active) {
-        DrawSphere(projectile->position, Vector3Length(projectile->direction) * 3, RED);
-    }
+void DrawProjectile(Projectile *projectile) {
+    if (projectile == NULL || !projectile->active)
+        return;
+
+    DrawTrailGlow(
+        projectile->position,
+        Vector3Length(projectile->direction) * 3.0f,
+        RED
+    );
 }

@@ -183,8 +183,8 @@ void UIDrawWaveBanner(
 
     Color accent = bossWave ? UI_RED : UI_BLUE;
     const char *subtitle = bossWave
-        ? "DREADNOUGHT DETECTED"
-        : "HOSTILES INBOUND";
+        ? "BOSS"
+        : "ENEMIES";
 
     char title[32];
     snprintf(title, sizeof(title), "WAVE %d", waveNumber);

@@ -33,9 +33,12 @@ void UpdateProjectile(
     float deltaTime
 );
 
+void DrawProjectileTrail(
+    Projectile *projectile
+);
+
 void DrawProjectile(
-    Projectile *projectile,
-    Camera3D camera
+    Projectile *projectile
 );
 
 #endif
