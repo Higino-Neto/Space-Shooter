@@ -1,0 +1,1029 @@
+#include "world.h"
+#include "camera.h"
+#include "player.h"
+#include "planet.h"
+#include "wave.h"
+#include "ui/crosshair.h"
+
+#include "raylib.h"
+#include "raymath.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include <math.h>
+
+#define WAVE_BANNER_TIME 3.2f
+
+static float DistanceSquared(Vector3 a, Vector3 b)
+{
+    Vector3 difference = Vector3Subtract(a, b);
+
+    return
+        difference.x * difference.x +
+        difference.y * difference.y +
+        difference.z * difference.z;
+}
+
+
+// static float SafeLength(Vector3 vector)
+// {
+//     return sqrtf(
+//         vector.x * vector.x +
+//         vector.y * vector.y +
+//         vector.z * vector.z
+//     );
+// }
+
+// static void ResolvePlanetCollision(Player *Sphere, const Planet *planet) {
+//     Vector3 offset =
+//         Vector3Subtract(
+//             Sphere->position,
+//             planet->position
+//         );
+
+//     float distance =
+//         SafeLength(offset);
+
+//     if (distance < 0.001f)
+//     {
+//         Sphere->position =
+//             Vector3Add(
+//                 planet->position,
+//                 (Vector3){
+//                     0.0f,
+//                     planet->radius +
+//                     SPHERE_MIN_DISTANCE_FROM_PLANET,
+//                     0.0f
+//                 }
+//             );
+
+//         Sphere->velocity =
+//             Vector3Zero();
+
+//         return;
+//     }
+
+//     float minimumDistance =
+//         planet->radius +
+//         Sphere->collisionRadius +
+//         SPHERE_MIN_DISTANCE_FROM_PLANET;
+
+
+//     if (distance < minimumDistance)
+//     {
+//         Vector3 normal =
+//             Vector3Scale(
+//                 offset,
+//                 1.0f / distance
+//             );
+
+//         Sphere->position =
+//             Vector3Add(
+//                 planet->position,
+//                 Vector3Scale(
+//                     normal,
+//                     minimumDistance
+//                 )
+//             );
+
+
+//         float radialVelocity =
+//             Vector3DotProduct(
+//                 Sphere->velocity,
+//                 normal
+//             );
+
+//         if (radialVelocity < 0.0f)
+//         {
+//             Sphere->velocity =
+//                 Vector3Subtract(
+//                     Sphere->velocity,
+//                     Vector3Scale(
+//                         normal,
+//                         radialVelocity
+//                     )
+//                 );
+//         }
+//     }
+// }
+
+
+
+
+
+
+static void RemoveInactiveEnemies(World *world)
+{
+    int writeIndex = 0;
+
+    for (int readIndex = 0;
+         readIndex < world->enemyCount;
+         readIndex++)
+    {
+        if (world->enemies[readIndex].active)
+        {
+            if (writeIndex != readIndex)
+            {
+                world->enemies[writeIndex] =
+                    world->enemies[readIndex];
+            }
+
+            writeIndex++;
+        }
+    }
+
+    world->enemyCount = writeIndex;
+}
+
+
+static void RemoveInactiveProjectiles(World *world)
+{
+    int writeIndex = 0;
+
+    for (int readIndex = 0;
+         readIndex < world->projectileCount;
+         readIndex++)
+    {
+        if (world->projectiles[readIndex].active)
+        {
+            if (writeIndex != readIndex)
+            {
+                world->projectiles[writeIndex] =
+                    world->projectiles[readIndex];
+            }
+
+            writeIndex++;
+        }
+    }
+
+    world->projectileCount = writeIndex;
+}
+
+
+
+World CreateWorld() {
+    World world = { 0 };
+
+    world.gameCamera =
+        CreateGameCamera();
+
+    world.targeting =
+        CreateTargetingSystem();
+
+    return world;
+}
+
+bool WorldAddPlayer(World *world, Player player) {
+    world->player = player;
+
+    return true;
+}
+
+bool WorldAddEnemy(World *world, Enemy enemy) {
+    if (world->enemyCount >= MAX_ENEMIES) {
+        return false;
+    }
+
+    world->enemies[world->enemyCount++] = enemy;
+
+    return true;
+}
+
+bool WorldAddWave(World *world, EnemyWave enemyWave) {
+    for(int groupIndex = 0; groupIndex < enemyWave.enemyGroupCount; groupIndex++) {
+        EnemyGroup *group = &enemyWave.enemyGroup[groupIndex];
+
+        Enemy enemy = group->model;
+        for(int enemyIndex = 0; enemyIndex < group->enemyCount; enemyIndex++) {
+            enemy.position = GetRandomSpawnPosition(enemy.spawnDistance);
+
+            if (!WorldAddEnemy(world, enemy))
+                break;
+        }
+    }
+
+    return true;
+}
+
+bool WorldAddPlanet(World *world, Planet planet) {
+    if (world->planetCount >= MAX_PLANETS) {
+        return false;
+    }
+
+    world->planets[world->planetCount++] = planet;
+
+    return true;
+}
+
+bool WorldAddProjectile(World *world, Projectile projectile) {
+    if (world->projectileCount >= MAX_PROJECTILES) {
+        return false;
+    }
+
+    world->projectiles[world->projectileCount++] = projectile;
+
+    return true;
+}
+
+static void UpdateWorldWave(
+    World *world,
+    EnemyAssets *enemyAssets,
+    float deltaTime
+) {
+
+    if (world->waveBannerTimer > 0.0f) {
+        world->waveBannerTimer -= deltaTime;
+
+        if (world->waveBannerTimer < 0.0f)
+            world->waveBannerTimer = 0.0f;
+    }
+
+    if (world->currentWave == 0) {
+        EnemyWave enemyWave = CreateWave(
+            world->planets[0],
+            enemyAssets,
+            1
+        );
+
+        WorldAddWave(world, enemyWave);
+        world->currentWave = 1;
+        world->waveBannerTimer = WAVE_BANNER_TIME;
+        return;
+
+    } 
+    
+    if (world->enemyCount > 0) {
+        return;
+    }
+    
+    if (!world->waitingForNextWave) {
+        world->waveCooldown = GetWaveCooldown(world->currentWave + 1);
+        world->waitingForNextWave = true;
+        return;
+    }
+
+    world->waveCooldown -= deltaTime;
+         
+    
+    if (world->waveCooldown <= 0.0f) {
+        int nextWave = world->currentWave + 1;
+
+        EnemyWave enemyWave = CreateWave(
+            world->planets[0],
+            enemyAssets,
+            nextWave
+        );
+
+        WorldAddWave(world, enemyWave);
+        world->currentWave = nextWave;
+        world->waveBannerTimer = WAVE_BANNER_TIME;
+        world->waitingForNextWave = false;
+    }
+}   
+
+
+static void UpdateWorldPlayer(
+    World *world,
+    CameraController *controller,
+    float deltaTime
+)
+{
+    Vector3 forward =
+        GetForwardDirection(controller);
+
+    Vector3 horizontalForward =
+        GetHorizontalForwardDirection(controller);
+
+    Vector3 right = {
+        -horizontalForward.z,
+        0.0f,
+        horizontalForward.x
+    };
+
+    Vector3 up = {
+        0.0f,
+        1.0f,
+        0.0f
+    };
+
+    UpdatePlayer(
+        &world->player,
+        &world->planets[0],
+        forward,
+        right,
+        up
+    );
+
+    UpdateShipTrails(
+        &world->player,
+        forward,
+        right,
+        up,
+        deltaTime
+    );
+}
+
+static void HandlePlayerShooting(
+    World *world,
+    const Crosshair *crosshair,
+    const Camera *camera
+)
+{
+    if (!IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+        return;
+    
+    if (world->player.fireTimer != 0)
+        return;
+
+    Ray aimRay = GetScreenToWorldRay(crosshair->aim, *camera);
+
+    const float aimDistance = 500.0f;
+
+    Vector3 aimPoint = Vector3Add(
+        aimRay.position,
+        Vector3Scale(aimRay.direction, aimDistance)
+    );
+
+    Vector3 muzzle = Vector3Add(
+        world->player.position,
+        Vector3Scale(world->player.forward, 8.0f)
+    );
+
+    Vector3 shotDirection = Vector3Normalize(
+        Vector3Subtract(aimPoint, muzzle)
+    );
+
+    TargetingResolveShot(
+        &world->targeting,
+        world->enemies,
+        world->enemyCount,
+        muzzle,
+        1500.0f,
+        &shotDirection
+    );
+
+    Projectile projectile = CreateProjectile(
+        muzzle,
+        shotDirection,
+        world->player.damage,
+        1500.0f,
+        0
+    );
+
+    WorldAddProjectile(world, projectile);
+
+    world->player.fireTimer = world->player.fireCooldown;
+
+    // Projectile projectile =
+    //     CreateProjectile(
+    //         world->player.position,
+    //         world->player.forward,
+    //         world->player.damage,
+    //         1500.0f,
+    //         0
+    //     );
+
+    // WorldAddProjectile(
+    //     world,
+    //     projectile
+    // );
+
+    // world->player.fireTimer = world->player.fireCooldown;
+}
+
+static void HandleEnemyShooting(
+    World *world
+)
+{
+    int activeEnemyProjectiles = 0;
+
+    for (int i = 0; i < world->projectileCount; i++)
+    {
+        Projectile *projectile = &world->projectiles[i];
+
+        if (projectile->active && projectile->ownerId == 1)
+            activeEnemyProjectiles++;
+    }
+
+    for (int i = 0;
+         i < world->enemyCount;
+         i++)
+    {
+        Enemy *enemy =
+            &world->enemies[i];
+
+        if (!enemy->active)
+            continue;
+
+        if (!enemy->wantsToShoot)
+            continue;
+
+        if (activeEnemyProjectiles >= MAX_ENEMY_PROJECTILES)
+        {
+            enemy->wantsToShoot = false;
+            continue;
+        }
+
+        int count = enemy->projectileCount > 0
+            ? enemy->projectileCount
+            : 1;
+
+        float speed = enemy->projectileSpeed > 0.0f
+            ? enemy->projectileSpeed
+            : 1000.0f;
+
+        Vector3 axis = { 0.0f, 1.0f, 0.0f };
+        float vertical = Vector3DotProduct(enemy->forward, axis);
+
+        if (vertical > 0.98f || vertical < -0.98f)
+            axis = (Vector3){ 1.0f, 0.0f, 0.0f };
+
+        for (int shot = 0; shot < count; shot++)
+        {
+            if (activeEnemyProjectiles >= MAX_ENEMY_PROJECTILES)
+                break;
+
+            float offset =
+                ((float)shot - (float)(count - 1) * 0.5f) *
+                enemy->burstSpread;
+
+            Vector3 direction = Vector3RotateByAxisAngle(
+                enemy->forward,
+                axis,
+                offset
+            );
+
+            Projectile projectile =
+                CreateProjectile(
+                    enemy->position,
+                    direction,
+                    enemy->strength,
+                    speed,
+                    1
+                );
+
+            if (WorldAddProjectile(
+                    world,
+                    projectile))
+            {
+                activeEnemyProjectiles++;
+            }
+        }
+
+        enemy->wantsToShoot = false;
+    }
+}
+
+static void HandleEnemySupport(
+    World *world
+)
+{
+    for (int i = 0; i < world->enemyCount; i++)
+    {
+        Enemy *support = &world->enemies[i];
+
+        if (!support->active || !support->wantsToHeal)
+            continue;
+
+        support->wantsToHeal = false;
+
+        for (int j = 0; j < world->enemyCount; j++)
+        {
+            if (j == i)
+                continue;
+
+            Enemy *ally = &world->enemies[j];
+
+            if (!ally->active)
+                continue;
+
+            if (ally->health >= ally->maxHealth)
+                continue;
+
+            if (Vector3Distance(
+                    support->position,
+                    ally->position) > support->healRadius)
+            {
+                continue;
+            }
+
+            ally->health += support->healAmount;
+
+            if (ally->health > ally->maxHealth)
+                ally->health = ally->maxHealth;
+        }
+    }
+}
+
+static void HandleEnemyContactDamage(
+    World *world
+)
+{
+    for (int i = 0; i < world->enemyCount; i++)
+    {
+        Enemy *enemy = &world->enemies[i];
+
+        if (!enemy->active)
+            continue;
+
+        if (enemy->contactDamage <= 0.0f)
+            continue;
+
+        if (enemy->contactTimer > 0.0f)
+            continue;
+
+        float distance = Vector3Distance(
+            enemy->position,
+            world->player.position
+        );
+
+        float reach =
+            enemy->collisionRadius +
+            world->player.collisionRadius;
+
+        if (distance > reach)
+            continue;
+
+        DamagePlayer(
+            &world->player,
+            enemy->contactDamage
+        );
+
+        enemy->contactTimer = enemy->contactCooldown;
+    }
+}
+
+static void SpawnSplitChildren(
+    World *world,
+    const Enemy *parent
+)
+{
+    if (world->enemyAssets == NULL)
+        return;
+
+    int count = parent->splitCount > 0
+        ? parent->splitCount
+        : 2;
+
+    for (int i = 0; i < count; i++)
+    {
+        float angle =
+            (float)i * (2.0f * PI / (float)count);
+
+        Vector3 offset = {
+            cosf(angle) * parent->collisionRadius * 0.9f,
+            0.0f,
+            sinf(angle) * parent->collisionRadius * 0.9f
+        };
+
+        Enemy child = CreateEnemyType(
+            ENEMY_INTERCEPTOR,
+            Vector3Add(parent->position, offset),
+            &world->planets[0]
+        );
+
+        child.visualModel =
+            &world->enemyAssets->ships[ENEMY_INTERCEPTOR];
+
+        child.forward = parent->forward;
+
+        ScaleEnemyForWave(&child, world->currentWave);
+
+        WorldAddEnemy(world, child);
+    }
+}
+
+static void UpdateWorldEnemies(
+    World *world,
+    float deltaTime
+)
+{
+    for (int i = 0; i < world->enemyCount; i++) {
+        Enemy *enemy =
+            &world->enemies[i];
+
+        if (!enemy->active)
+            continue;
+
+        UpdateEnemy(
+            enemy,
+            &world->planets[0],
+            &world->player,
+            deltaTime
+        );
+    }
+}
+
+static bool ProjectileHitsPlanet(
+    World *world,
+    Projectile *projectile
+)
+{
+    for (int i = 0;
+         i < world->planetCount;
+         i++)
+    {
+        Planet *planet =
+            &world->planets[i];
+
+
+        if (!PlanetContainsSphere(
+                planet,
+                projectile->position,
+                0.0f))
+        {
+            continue;
+        }
+
+        DamagePlanet(
+            planet,
+            projectile->position,
+            20.0f
+        );
+
+
+        projectile->active = false;
+
+        return true;
+    }
+
+    return false;
+}
+
+static bool ProjectileHitsPlayer(
+    World *world,
+    Projectile *projectile
+)
+{
+    if (projectile->ownerId != 1)
+        return false;
+
+    Vector3 difference =
+        Vector3Subtract(
+            projectile->position,
+            world->player.position
+        );
+
+    float distanceSquared =
+        Vector3DotProduct(
+            difference,
+            difference
+        );
+
+    const float playerCollisionRadius = world->player.collisionRadius;
+
+    if (
+        distanceSquared <=
+        playerCollisionRadius *
+        playerCollisionRadius
+    )
+    {
+        DamagePlayer(
+            &world->player,
+            projectile->damage
+        );
+
+        projectile->active = false;
+
+        return true;
+    }
+
+    return false;
+}
+
+static bool ProjectileHitsEnemy(
+    World *world,
+    Projectile *projectile
+)
+{
+
+    if (projectile->ownerId != 0)
+        return false;
+
+
+    for (int i = 0;
+         i < world->enemyCount;
+         i++)
+    {
+        Enemy *enemy =
+            &world->enemies[i];
+
+        if (!enemy->active)
+            continue;
+
+
+        float collisionDistance =
+            enemy->collisionRadius;
+
+
+        float distanceSquared =
+            DistanceSquared(
+                projectile->position,
+                enemy->position
+            );
+
+
+        if (
+            distanceSquared <=
+            collisionDistance *
+            collisionDistance
+        )
+        {
+            DamageEnemy(
+                enemy,
+                projectile->damage
+            );
+
+            if (!enemy->alive) {
+                PlayerAddXP(&world->player, enemy->xpReward);
+
+                if (enemy->splitOnDeath)
+                    SpawnSplitChildren(world, enemy);
+            }
+
+            projectile->active = false;
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void UpdateWorldProjectiles(
+    World *world,
+    float deltaTime
+)
+{
+    const float despawnDistanceSquared =
+        PROJECTILE_DESPAWN_DISTANCE *
+        PROJECTILE_DESPAWN_DISTANCE;
+
+    Vector3 planetPosition = { 0 };
+
+    if (world->planetCount > 0)
+        planetPosition = world->planets[0].position;
+
+    for (int i = 0;
+         i < world->projectileCount;
+         i++)
+    {
+        Projectile *projectile =
+            &world->projectiles[i];
+
+        if (!projectile->active)
+            continue;
+
+        
+
+        UpdateProjectile(
+            projectile,
+            deltaTime
+        );
+
+        if (!projectile->active)
+            continue;
+
+        bool farFromPlanet =
+            world->planetCount == 0 ||
+            DistanceSquared(
+                projectile->position,
+                planetPosition) > despawnDistanceSquared;
+
+        bool farFromPlayer =
+            DistanceSquared(
+                projectile->position,
+                world->player.position) > despawnDistanceSquared;
+
+        if (farFromPlanet && farFromPlayer)
+        {
+            projectile->active = false;
+            continue;
+        }
+
+        if (ProjectileHitsPlanet(
+                world,
+                projectile))
+        {
+            continue;
+        }
+
+
+        if (ProjectileHitsEnemy(
+                world,
+                projectile))
+        {
+            continue;
+        }
+
+        if (ProjectileHitsPlayer(
+            world,
+            projectile))
+        {
+            continue;
+        }
+    }
+}
+
+static void CleanupWorld(
+    World *world
+)
+{
+    RemoveInactiveEnemies(world);
+
+    RemoveInactiveProjectiles(world);
+}
+
+void UpdateWorld(
+    World *world,
+    CameraController *controller,
+    Camera *camera,
+    Crosshair *crosshair,
+    EnemyAssets *enemyAssets
+)
+{
+    if (world == NULL ||
+        controller == NULL ||
+        camera == NULL)
+    {
+        return;
+    }
+
+    float deltaTime =
+        GetFrameTime();
+
+    if (deltaTime > 0.05f)
+        deltaTime = 0.05f;
+
+    world->enemyAssets = enemyAssets;
+
+    CrosshairUpdateInput(crosshair);
+
+    CrosshairSteerCamera(crosshair, controller, deltaTime);
+
+    // UpdateCameraController(
+    //     controller
+    // );
+
+    UpdateWorldPlayer(
+        world,
+        controller,
+        deltaTime
+    );
+
+
+    UpdateGameCamera(
+        &world->gameCamera,
+        camera,
+        controller,
+        &world->player,
+        deltaTime
+    );
+
+    CrosshairProject(crosshair, camera);
+
+    UpdateTargeting(
+        &world->targeting,
+        world->enemies,
+        world->enemyCount,
+        world->player.position,
+        camera,
+        controller,
+        crosshair,
+        deltaTime
+    );
+
+    HandlePlayerShooting(
+        world,
+        crosshair,
+        camera
+    );
+
+
+    UpdateWorldEnemies(
+        world,
+        deltaTime
+    );
+
+    HandleEnemySupport(
+        world
+    );
+
+    HandleEnemyContactDamage(
+        world
+    );
+
+    UpdateWorldWave(
+        world,
+        enemyAssets,
+        deltaTime
+    );
+
+    HandleEnemyShooting(
+        world
+    );
+
+    for (int i = 0;
+         i < world->planetCount;
+         i++)
+    {
+        UpdatePlanet(
+            &world->planets[i],
+            camera->position
+        );
+    }
+
+    UpdateWorldProjectiles(
+        world,
+        deltaTime
+    );
+
+
+
+    CleanupWorld(
+        world
+    );
+}
+
+
+void DrawWorld(
+    World *world,
+    Camera3D camera
+)
+{
+    if (world == NULL)
+        return;
+
+    for (int i = 0;
+         i < world->planetCount;
+         i++)
+    {
+
+        DrawPlanet(
+            &world->planets[i],
+            world->planets[i].material
+        );
+    }
+
+    Vector3 horizontalForward =
+        Vector3Normalize(
+            (Vector3){
+                world->player.forward.x,
+                0.0f,
+                world->player.forward.z
+            }
+        );
+
+    Vector3 right = {
+        -horizontalForward.z,
+        0.0f,
+        horizontalForward.x
+    };
+
+    Vector3 up = {
+        0.0f,
+        1.0f,
+        0.0f
+    };
+
+    DrawPlayer(
+        &world->player
+    );
+
+    for (int i = 0;
+         i < world->enemyCount;
+         i++)
+    {
+        DrawEnemy(
+            &world->enemies[i]
+        );
+    }
+
+    BeginTrailBatch(camera);
+
+    DrawShipTrails(
+        &world->player,
+        world->player.forward,
+        right,
+        up,
+        camera
+    );
+
+    for (int i = 0;
+         i < world->projectileCount;
+         i++)
+    {
+       if (!world->projectiles[i].active)
+           continue;
+
+       DrawProjectileTrail(
+            &world->projectiles[i]
+        );
+
+       DrawProjectile(
+            &world->projectiles[i]
+        );
+    }
+
+    EndTrailBatch();
+
+}
